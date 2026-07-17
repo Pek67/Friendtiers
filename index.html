@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FriendTiers - Tier List Creator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎮 FriendTiers</h1>
+            <p>Erstelle deine Tier List deiner Freunde!</p>
+        </header>
+
+        <div class="main-content">
+            <div class="controls">
+                <div class="input-group">
+                    <input type="text" id="nameInput" placeholder="Namen deiner Freunde eingeben...">
+                    <button onclick="addItem()">➕ Hinzufügen</button>
+                </div>
+                <button class="clear-btn" onclick="clearAll()">🗑️ Alles löschen</button>
+            </div>
+
+            <div class="tier-list-container">
+                <div class="tier-list">
+                    <!-- LT5 -->
+                    <div class="tier">
+                        <div class="tier-label lt5-tier">LT5</div>
+                        <div class="tier-items" id="tier-lt5" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+                    </div>
+
+                    <!-- HT5 -->
+                    <div class="tier">
+                        <div class="tier-label ht5-tier">HT5</div>
+                        <div class="tier-items" id="tier-ht5" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+                    </div>
+
+                    <!-- LT4 -->
+                    <div class="tier">
+                        <div class="tier-label lt4-tier">LT4</div>
+                        <div class="tier-items" id="tier-lt4" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+                    </div>
+
+                    <!-- HT4 -->
+                    <div class="tier">
+                        <div class="tier-label ht4-tier">HT4</div>
+                        <div class="tier-items" id="tier-ht4" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+                    </div>
+
+                    <!-- LT3 -->
+                    <div class="tier">
+                        <div class="tier-label lt3-tier">LT3</div>
+                        <div class="tier-items" id="tier-lt3" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+                    </div>
+
+                    <!-- HT3 -->
+                    <div class="tier">
+                        <div class="tier-label ht3-tier">HT3</div>
+                        <div class="tier-items" id="tier-ht3" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+                    </div>
+
+                    <!-- LT2 -->
+                    <div class="tier">
+                        <div class="tier-label lt2-tier">LT2</div>
+                        <div class="tier-items" id="tier-lt2" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+                    </div>
+
+                    <!-- HT2 -->
+                    <div class="tier">
+                        <div class="tier-label ht2-tier">HT2</div>
+                        <div class="tier-items" id="tier-ht2" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+                    </div>
+
+                    <!-- LT1 -->
+                    <div class="tier">
+                        <div class="tier-label lt1-tier">LT1</div>
+                        <div class="tier-items" id="tier-lt1" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+                    </div>
+
+                    <!-- HT1 -->
+                    <div class="tier">
+                        <div class="tier-label ht1-tier">HT1</div>
+                        <div class="tier-items" id="tier-ht1" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+                    </div>
+                </div>
+
+                <!-- Unranked Items -->
+                <div class="unranked-section">
+                    <h3>📋 Nicht eingeordnet</h3>
+                    <div class="unranked-items" id="unranked" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Drag & Drop um zu ordnen | Made with ❤️</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
