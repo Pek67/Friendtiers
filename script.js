@@ -1,13 +1,15 @@
+const TIERS = ['HT1', 'LT1', 'HT2', 'LT2', 'HT3', 'LT3', 'HT4', 'LT4', 'HT5', 'LT5'];
+const MAX_RANKINGS = 20;
 let draggedElement = null;
 
 // Drag and Drop Funktionen
 function allowDrop(e) {
     e.preventDefault();
-    e.target.closest('.tier-items, .unranked-items').classList.add('drag-over');
+    e.target.closest('.ranking-list, .unranked-items')?.classList.add('drag-over');
 }
 
 function drag(e) {
-    draggedElement = e.target;
+    draggedElement = e.target.closest('.item, .unranked-item');
     e.dataTransfer.effectAllowed = 'move';
 }
 
@@ -15,13 +17,19 @@ function drop(e) {
     e.preventDefault();
     e.stopPropagation();
     
-    const tierContainer = e.target.closest('.tier-items, .unranked-items');
-    if (tierContainer && draggedElement) {
-        tierContainer.appendChild(draggedElement);
+    const container = e.target.closest('.ranking-list, .unranked-items');
+    if (container && draggedElement) {
+        const parent = draggedElement.closest('.ranking-item');
+        if (parent) {
+            container.appendChild(parent);
+        } else {
+            container.appendChild(draggedElement);
+        }
+        updateRankings();
         saveToLocalStorage();
     }
     
-    document.querySelectorAll('.tier-items, .unranked-items').forEach(el => {
+    document.querySelectorAll('.ranking-list, .unranked-items').forEach(el => {
         el.classList.remove('drag-over');
     });
 }
@@ -36,7 +44,7 @@ function addItem() {
         return;
     }
     
-    const item = createItemElement(name);
+    const item = createUnrankedItem(name);
     document.getElementById('unranked').appendChild(item);
     
     input.value = '';
@@ -45,9 +53,9 @@ function addItem() {
     saveToLocalStorage();
 }
 
-function createItemElement(name) {
+function createUnrankedItem(name) {
     const item = document.createElement('div');
-    item.className = 'item';
+    item.className = 'unranked-item';
     item.draggable = true;
     item.innerHTML = `
         <span>${name}</span>
@@ -56,7 +64,32 @@ function createItemElement(name) {
     
     item.addEventListener('dragstart', drag);
     item.addEventListener('dragend', () => {
-        document.querySelectorAll('.tier-items, .unranked-items').forEach(el => {
+        document.querySelectorAll('.ranking-list, .unranked-items').forEach(el => {
+            el.classList.remove('drag-over');
+        });
+    });
+    
+    return item;
+}
+
+function createRankingItem(rank, name, tier = 'HT1') {
+    const item = document.createElement('div');
+    item.className = 'ranking-item';
+    item.draggable = true;
+    item.innerHTML = `
+        <div class="rank-number ${rank <= 3 ? 'top3' : ''}">🏆 ${rank}</div>
+        <div class="item">
+            <span class="item-name">${name}</span>
+            <select class="tier-select" onchange="saveToLocalStorage()">
+                ${TIERS.map(t => `<option value="${t}" ${t === tier ? 'selected' : ''}>${t}</option>`).join('')}
+            </select>
+            <button class="item-delete" onclick="deleteRanking(this)">✕</button>
+        </div>
+    `;
+    
+    item.addEventListener('dragstart', drag);
+    item.addEventListener('dragend', () => {
+        document.querySelectorAll('.ranking-list, .unranked-items').forEach(el => {
             el.classList.remove('drag-over');
         });
     });
@@ -66,16 +99,33 @@ function createItemElement(name) {
 
 // Item löschen
 function deleteItem(button) {
-    button.closest('.item').remove();
+    button.closest('.unranked-item').remove();
     saveToLocalStorage();
+}
+
+function deleteRanking(button) {
+    button.closest('.ranking-item').remove();
+    updateRankings();
+    saveToLocalStorage();
+}
+
+function updateRankings() {
+    const rankingList = document.getElementById('rankingList');
+    const items = rankingList.querySelectorAll('.ranking-item');
+    
+    items.forEach((item, index) => {
+        const rankNumber = item.querySelector('.rank-number');
+        const newRank = index + 1;
+        rankNumber.textContent = `🏆 ${newRank}`;
+        rankNumber.className = `rank-number ${newRank <= 3 ? 'top3' : ''}`;
+    });
 }
 
 // Alles löschen
 function clearAll() {
     if (confirm('Möchtest du wirklich alles löschen?')) {
-        document.querySelectorAll('.tier-items, .unranked-items').forEach(el => {
-            el.innerHTML = '';
-        });
+        document.getElementById('rankingList').innerHTML = '';
+        document.getElementById('unranked').innerHTML = '';
         saveToLocalStorage();
     }
 }
@@ -83,94 +133,42 @@ function clearAll() {
 // LocalStorage (automatisches Speichern)
 function saveToLocalStorage() {
     const data = {
-        tiers: {
-            's': [],
-            'a': [],
-            'b': [],
-            'c': [],
-            'd': [],
-            'f': [],
-            'unranked': []
-        }
+        rankings: [],
+        unranked: []
     };
     
-    // S-Tier
-    document.querySelectorAll('#tier-s .item span').forEach(span => {
-        data.tiers.s.push(span.textContent);
+    // Rankings speichern
+    document.querySelectorAll('#rankingList .ranking-item').forEach((item, index) => {
+        const name = item.querySelector('.item-name').textContent;
+        const tier = item.querySelector('.tier-select').value;
+        data.rankings.push({ rank: index + 1, name, tier });
     });
     
-    // A-Tier
-    document.querySelectorAll('#tier-a .item span').forEach(span => {
-        data.tiers.a.push(span.textContent);
+    // Unranked speichern
+    document.querySelectorAll('#unranked .unranked-item').forEach(item => {
+        const name = item.querySelector('span').textContent;
+        data.unranked.push(name);
     });
     
-    // B-Tier
-    document.querySelectorAll('#tier-b .item span').forEach(span => {
-        data.tiers.b.push(span.textContent);
-    });
-    
-    // C-Tier
-    document.querySelectorAll('#tier-c .item span').forEach(span => {
-        data.tiers.c.push(span.textContent);
-    });
-    
-    // D-Tier
-    document.querySelectorAll('#tier-d .item span').forEach(span => {
-        data.tiers.d.push(span.textContent);
-    });
-    
-    // F-Tier
-    document.querySelectorAll('#tier-f .item span').forEach(span => {
-        data.tiers.f.push(span.textContent);
-    });
-    
-    // Unranked
-    document.querySelectorAll('#unranked .item span').forEach(span => {
-        data.tiers.unranked.push(span.textContent);
-    });
-    
-    localStorage.setItem('friendtiers-data', JSON.stringify(data));
+    localStorage.setItem('mctiers-data', JSON.stringify(data));
 }
 
 function loadFromLocalStorage() {
-    const saved = localStorage.getItem('friendtiers-data');
+    const saved = localStorage.getItem('mctiers-data');
     if (!saved) return;
     
     const data = JSON.parse(saved);
     
-    // S-Tier laden
-    data.tiers.s.forEach(name => {
-        document.getElementById('tier-s').appendChild(createItemElement(name));
-    });
-    
-    // A-Tier laden
-    data.tiers.a.forEach(name => {
-        document.getElementById('tier-a').appendChild(createItemElement(name));
-    });
-    
-    // B-Tier laden
-    data.tiers.b.forEach(name => {
-        document.getElementById('tier-b').appendChild(createItemElement(name));
-    });
-    
-    // C-Tier laden
-    data.tiers.c.forEach(name => {
-        document.getElementById('tier-c').appendChild(createItemElement(name));
-    });
-    
-    // D-Tier laden
-    data.tiers.d.forEach(name => {
-        document.getElementById('tier-d').appendChild(createItemElement(name));
-    });
-    
-    // F-Tier laden
-    data.tiers.f.forEach(name => {
-        document.getElementById('tier-f').appendChild(createItemElement(name));
+    // Rankings laden
+    data.rankings.forEach(item => {
+        const rankingItem = createRankingItem(item.rank, item.name, item.tier);
+        document.getElementById('rankingList').appendChild(rankingItem);
     });
     
     // Unranked laden
-    data.tiers.unranked.forEach(name => {
-        document.getElementById('unranked').appendChild(createItemElement(name));
+    data.unranked.forEach(name => {
+        const unrankedItem = createUnrankedItem(name);
+        document.getElementById('unranked').appendChild(unrankedItem);
     });
 }
 
@@ -182,5 +180,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
+    // Ranking Platzhalter (1-20)
+    for (let i = 1; i <= MAX_RANKINGS; i++) {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'ranking-item';
+        placeholder.innerHTML = `
+            <div class="rank-number ${i <= 3 ? 'top3' : ''}">🏆 ${i}</div>
+            <div style="flex: 1; background: #0f1426; border: 2px dashed #2a3050; border-radius: 6px; padding: 12px; color: #666; display: flex; align-items: center;">
+                Platz ${i}
+            </div>
+        `;
+        placeholder.id = `placeholder-${i}`;
+        placeholder.style.opacity = '0.5';
+        document.getElementById('rankingList').appendChild(placeholder);
+    }
+    
     loadFromLocalStorage();
+});
+
+// Rankings aktualisieren beim Laden
+window.addEventListener('load', () => {
+    // Placeholder nach dem Laden entfernen
+    for (let i = 1; i <= MAX_RANKINGS; i++) {
+        const placeholder = document.getElementById(`placeholder-${i}`);
+        if (placeholder && placeholder.querySelector('.item-name') === null) {
+            // Nur entfernen wenn es wirklich noch ein Placeholder ist
+            const parent = placeholder.parentElement;
+            if (parent && parent.querySelectorAll('.item-name').length > 0) {
+                placeholder.remove();
+            }
+        }
+    }
 });
