@@ -2,8 +2,12 @@ create table if not exists public.friendtiers_state (
     id text primary key,
     rankings jsonb not null default '[]'::jsonb,
     unranked jsonb not null default '[]'::jsonb,
+    gamemodes jsonb not null default '{}'::jsonb,
     updated_at timestamptz not null default timezone('utc', now())
 );
+
+alter table public.friendtiers_state
+add column if not exists gamemodes jsonb not null default '{}'::jsonb;
 
 create table if not exists public.friendtiers_comments (
     id bigint generated always as identity primary key,

@@ -61,6 +61,11 @@
             </div>
 
             <div class="controls">
+                <div class="gamemode-controls">
+                    <label for="gamemodeSelect">🎯 Gamemode:</label>
+                    <select id="gamemodeSelect" aria-label="Gamemode auswählen"></select>
+                    <span id="activeGamemodeHint" class="active-gamemode-hint">Aktiv: Sword</span>
+                </div>
                 <div class="input-group">
                     <input type="text" id="nameInput" placeholder="Spieler hinzufügen...">
                     <select id="tierSelect">
@@ -85,7 +90,7 @@
             </div>
 
             <div class="rankings-section">
-                <h2>🏆 Gesamtrankings</h2>
+                <h2>🏆 Rankings <span id="rankingsGamemodeLabel">Sword</span></h2>
                 <table class="rankings-table">
                     <thead>
                         <tr>

@@ -1,6 +1,7 @@
 const TIERS = ['HT1', 'LT1', 'HT2', 'LT2', 'HT3', 'LT3', 'HT4', 'LT4', 'HT5', 'LT5'];
 const MAX_RANKINGS = 50;
 const LOCAL_STORAGE_KEY = 'rankings-data';
+const ACTIVE_GAMEMODE_STORAGE_KEY = 'friendtiers-active-gamemode';
 const COMMENTS_LOCAL_KEY = 'friendtiers-comments-data';
 const ADMIN_SESSION_KEY = 'friendtiers-admin-unlocked';
 const VIEWER_KEY_STORAGE = 'friendtiers-viewer-key';
@@ -11,6 +12,27 @@ const REACTIONS_TABLE = 'friendtiers_comment_reactions';
 const DAILY_ANSWERS_TABLE = 'friendtiers_daily_answers';
 const VISITORS_TABLE = 'friendtiers_visitors';
 const SUPABASE_ROW_ID = 'global';
+const GAMEMODES = [
+    { id: 'sword', label: 'Sword' },
+    { id: 'crystal', label: 'Crystal' },
+    { id: 'uhc', label: 'UHC' },
+    { id: 'pot', label: 'Pot' },
+    { id: 'nethop', label: 'NethOP' },
+    { id: 'smp', label: 'SMP' },
+    { id: 'axe', label: 'Axe' },
+    { id: 'mace', label: 'Mace' },
+    { id: 'vanilla', label: 'Vanilla' },
+    { id: 'ltms', label: 'LTMs / 2v2' },
+    { id: 'sumo', label: 'Sumo' },
+    { id: 'nodebuff', label: 'NoDebuff' },
+    { id: 'builduhc', label: 'BuildUHC' },
+    { id: 'nethpot', label: 'NethPot' },
+    { id: 'bedwars', label: 'Bedwars' },
+    { id: 'skywars', label: 'Skywars' },
+    { id: 'boxing', label: 'Boxing' },
+    { id: 'overall', label: 'Overall' }
+];
+const DEFAULT_GAMEMODE_ID = GAMEMODES[0].id;
 const REACTION_EMOJIS = ['🔥', '👑', '😂'];
 const DAILY_QUESTION = {
     key: 'tierlist-chaos-level',
@@ -78,6 +100,8 @@ let currentTrackIndex = 0;
 let musicAudio = null;
 let currentMusicVolume = 40;
 let isMusicPlaying = false;
+let selectedGamemodeId = DEFAULT_GAMEMODE_ID;
+let gamemodeBoards = createEmptyGamemodeBoards();
 
 function getSyncStatusElement() {
     return document.getElementById('syncStatus');
@@ -163,6 +187,108 @@ function getViewerKey() {
 
 function normalizeTier(tier) {
     return TIERS.includes(tier) ? tier : TIERS[0];
+}
+
+function createEmptyBoard() {
+    return {
+        rankings: [],
+        unranked: []
+    };
+}
+
+function createEmptyGamemodeBoards() {
+    const boards = {};
+    GAMEMODES.forEach((mode) => {
+        boards[mode.id] = createEmptyBoard();
+    });
+    return boards;
+}
+
+function getGamemodeById(modeId) {
+    return GAMEMODES.find((mode) => mode.id === modeId) || GAMEMODES[0];
+}
+
+function normalizeGamemodeId(modeId) {
+    return getGamemodeById(modeId).id;
+}
+
+function normalizePlayerEntry(entry, includeRank = false) {
+    if (!entry || typeof entry !== 'object') {
+        return null;
+    }
+
+    const name = typeof entry.name === 'string' ? entry.name.trim() : '';
+    if (!name) {
+        return null;
+    }
+
+    const normalized = {
+        name,
+        tier: normalizeTier(entry.tier)
+    };
+
+    if (includeRank) {
+        normalized.rank = Number.isInteger(entry.rank) && entry.rank > 0 ? entry.rank : null;
+    }
+
+    return normalized;
+}
+
+function normalizeBoard(boardData) {
+    const normalized = createEmptyBoard();
+
+    const rankings = Array.isArray(boardData && boardData.rankings) ? boardData.rankings : [];
+    rankings.forEach((item, index) => {
+        const normalizedItem = normalizePlayerEntry(item, true);
+        if (!normalizedItem) {
+            return;
+        }
+
+        normalized.rankings.push({
+            rank: index + 1,
+            name: normalizedItem.name,
+            tier: normalizedItem.tier
+        });
+    });
+
+    const unranked = Array.isArray(boardData && boardData.unranked) ? boardData.unranked : [];
+    unranked.forEach((item) => {
+        const normalizedItem = normalizePlayerEntry(item);
+        if (normalizedItem) {
+            normalized.unranked.push(normalizedItem);
+        }
+    });
+
+    return normalized;
+}
+
+function normalizeGamemodeBoards(rawData) {
+    const normalizedBoards = createEmptyGamemodeBoards();
+
+    if (
+        rawData &&
+        typeof rawData === 'object' &&
+        rawData.gamemodes &&
+        typeof rawData.gamemodes === 'object'
+    ) {
+        GAMEMODES.forEach((mode) => {
+            normalizedBoards[mode.id] = normalizeBoard(rawData.gamemodes[mode.id]);
+        });
+
+        return normalizedBoards;
+    }
+
+    normalizedBoards[DEFAULT_GAMEMODE_ID] = normalizeBoard(rawData);
+    return normalizedBoards;
+}
+
+function getCurrentBoard() {
+    const modeId = normalizeGamemodeId(selectedGamemodeId);
+    if (!gamemodeBoards[modeId]) {
+        gamemodeBoards[modeId] = createEmptyBoard();
+    }
+
+    return gamemodeBoards[modeId];
 }
 
 function setSyncStatus(message, state) {
@@ -282,28 +408,29 @@ function clearRenderedData() {
 }
 
 function collectCurrentData() {
-    const data = {
-        rankings: [],
-        unranked: []
+    const serializedModes = {};
+    GAMEMODES.forEach((mode) => {
+        const board = gamemodeBoards[mode.id] || createEmptyBoard();
+        serializedModes[mode.id] = {
+            rankings: board.rankings.map((item, index) => ({
+                rank: index + 1,
+                name: item.name,
+                tier: normalizeTier(item.tier)
+            })),
+            unranked: board.unranked.map((item) => ({
+                name: item.name,
+                tier: normalizeTier(item.tier)
+            }))
+        };
+    });
+
+    return {
+        gamemodes: serializedModes
     };
-
-    document.querySelectorAll('#rankingsBody tr').forEach((row, index) => {
-        const name = row.querySelector('.name-col').textContent;
-        const tier = row.querySelector('.tier-badge').textContent.trim();
-        data.rankings.push({ rank: index + 1, name, tier });
-    });
-
-    document.querySelectorAll('.unranked-item').forEach((item) => {
-        const name = item.querySelector('.unranked-name').textContent;
-        const tier = item.querySelector('.tier-badge').textContent.trim();
-        data.unranked.push({ name, tier });
-    });
-
-    return data;
 }
 
 function getBoardPlayers() {
-    const data = collectCurrentData();
+    const data = getCurrentBoard();
     const names = [];
 
     data.rankings.forEach((item) => {
@@ -345,6 +472,73 @@ function loadLocalComments() {
 
 function saveLocalComments(comments) {
     localStorage.setItem(COMMENTS_LOCAL_KEY, JSON.stringify(comments));
+}
+
+function renderCurrentBoard() {
+    clearRenderedData();
+    const board = getCurrentBoard();
+
+    board.rankings.forEach((item, index) => {
+        addRankingRowToDom(item.name, item.tier, index);
+    });
+
+    board.unranked.forEach((item, index) => {
+        addUnrankedItemToDom(item.name, item.tier, index);
+    });
+
+    updateRankNumbers();
+    renderVoteOptions();
+}
+
+function updateGamemodeLabels() {
+    const activeMode = getGamemodeById(selectedGamemodeId);
+    const headingLabel = document.getElementById('rankingsGamemodeLabel');
+    const hintLabel = document.getElementById('activeGamemodeHint');
+
+    if (headingLabel) {
+        headingLabel.textContent = activeMode.label;
+    }
+
+    if (hintLabel) {
+        hintLabel.textContent = `Aktiv: ${activeMode.label}`;
+    }
+}
+
+function setActiveGamemode(modeId) {
+    selectedGamemodeId = normalizeGamemodeId(modeId);
+    localStorage.setItem(ACTIVE_GAMEMODE_STORAGE_KEY, selectedGamemodeId);
+
+    const selector = document.getElementById('gamemodeSelect');
+    if (selector && selector.value !== selectedGamemodeId) {
+        selector.value = selectedGamemodeId;
+    }
+
+    updateGamemodeLabels();
+    renderCurrentBoard();
+}
+
+function initializeGamemodeSelector() {
+    const selector = document.getElementById('gamemodeSelect');
+    if (!selector) {
+        return;
+    }
+
+    selector.innerHTML = '';
+    GAMEMODES.forEach((mode) => {
+        const option = document.createElement('option');
+        option.value = mode.id;
+        option.textContent = mode.label;
+        selector.appendChild(option);
+    });
+
+    const savedMode = localStorage.getItem(ACTIVE_GAMEMODE_STORAGE_KEY);
+    selectedGamemodeId = normalizeGamemodeId(savedMode || DEFAULT_GAMEMODE_ID);
+    selector.value = selectedGamemodeId;
+    selector.addEventListener('change', () => {
+        setActiveGamemode(selector.value);
+    });
+
+    updateGamemodeLabels();
 }
 
 function updateAdminMode(nextIsAdmin) {
@@ -424,10 +618,12 @@ function requireAdminAction() {
 
 async function saveToSupabase(data) {
     const client = getSupabaseClient();
+    const defaultBoard = data.gamemodes[DEFAULT_GAMEMODE_ID] || createEmptyBoard();
     const payload = {
         id: SUPABASE_ROW_ID,
-        rankings: data.rankings,
-        unranked: data.unranked,
+        rankings: defaultBoard.rankings,
+        unranked: defaultBoard.unranked,
+        gamemodes: data.gamemodes,
         updated_at: new Date().toISOString()
     };
 
@@ -444,7 +640,7 @@ async function loadFromSupabase() {
     const client = getSupabaseClient();
     const { data, error } = await client
         .from(SUPABASE_TABLE)
-        .select('rankings, unranked')
+        .select('rankings, unranked, gamemodes')
         .eq('id', SUPABASE_ROW_ID)
         .maybeSingle();
 
@@ -1039,9 +1235,8 @@ function addPlayer() {
         return;
     }
 
-    const tbody = document.getElementById('rankingsBody');
-
-    if (tbody.children.length < MAX_RANKINGS) {
+    const board = getCurrentBoard();
+    if (board.rankings.length < MAX_RANKINGS) {
         addToRankings(name, tier);
     } else {
         addToUnranked(name, tier);
@@ -1053,12 +1248,13 @@ function addPlayer() {
     saveState();
 }
 
-function addToRankings(name, tier) {
+function addRankingRowToDom(name, tier, index) {
     const tbody = document.getElementById('rankingsBody');
-    const rank = tbody.children.length + 1;
+    const rank = index + 1;
 
     const row = document.createElement('tr');
     row.className = 'ranking-row';
+    row.dataset.index = String(index);
 
     const rankCell = document.createElement('td');
     rankCell.className = 'rank-col';
@@ -1091,11 +1287,12 @@ function addToRankings(name, tier) {
     tbody.appendChild(row);
 }
 
-function addToUnranked(name, tier) {
+function addUnrankedItemToDom(name, tier, index) {
     const unrankedList = document.getElementById('unrankedList');
 
     const item = document.createElement('div');
     item.className = 'unranked-item';
+    item.dataset.index = String(index);
 
     const nameElement = document.createElement('span');
     nameElement.className = 'unranked-name';
@@ -1113,26 +1310,42 @@ function addToUnranked(name, tier) {
     unrankedList.appendChild(item);
 }
 
+function addToRankings(name, tier) {
+    const board = getCurrentBoard();
+    board.rankings.push({
+        rank: board.rankings.length + 1,
+        name,
+        tier: normalizeTier(tier)
+    });
+    renderCurrentBoard();
+}
+
+function addToUnranked(name, tier) {
+    const board = getCurrentBoard();
+    board.unranked.push({
+        name,
+        tier: normalizeTier(tier)
+    });
+    renderCurrentBoard();
+}
+
 function moveRankingPosition(button, direction) {
     if (!requireAdminAction()) {
         return;
     }
 
     const row = button.closest('tr');
-    const tbody = document.getElementById('rankingsBody');
-    const sibling = direction < 0 ? row.previousElementSibling : row.nextElementSibling;
+    const fromIndex = Number.parseInt(row && row.dataset.index ? row.dataset.index : '-1', 10);
+    const board = getCurrentBoard();
+    const toIndex = fromIndex + direction;
 
-    if (!row || !sibling) {
+    if (fromIndex < 0 || toIndex < 0 || toIndex >= board.rankings.length) {
         return;
     }
 
-    if (direction < 0) {
-        tbody.insertBefore(row, sibling);
-    } else {
-        tbody.insertBefore(sibling, row);
-    }
-
-    updateRankNumbers();
+    const [movingRow] = board.rankings.splice(fromIndex, 1);
+    board.rankings.splice(toIndex, 0, movingRow);
+    renderCurrentBoard();
     renderVoteOptions();
     saveState();
 }
@@ -1142,18 +1355,25 @@ function moveToRankings(button) {
         return;
     }
 
-    const tbody = document.getElementById('rankingsBody');
-    if (tbody.children.length >= MAX_RANKINGS) {
+    const board = getCurrentBoard();
+    if (board.rankings.length >= MAX_RANKINGS) {
         alert(`Die Rankings sind voll. Maximal ${MAX_RANKINGS} Eintraege moeglich.`);
         return;
     }
 
     const item = button.closest('.unranked-item');
-    const name = item.querySelector('.unranked-name').textContent;
-    const tier = item.querySelector('.tier-badge').textContent.trim();
+    const unrankedIndex = Number.parseInt(item && item.dataset.index ? item.dataset.index : '-1', 10);
+    if (unrankedIndex < 0 || unrankedIndex >= board.unranked.length) {
+        return;
+    }
 
-    item.remove();
-    addToRankings(name, tier);
+    const [movedItem] = board.unranked.splice(unrankedIndex, 1);
+    board.rankings.push({
+        rank: board.rankings.length + 1,
+        name: movedItem.name,
+        tier: normalizeTier(movedItem.tier)
+    });
+    renderCurrentBoard();
     renderVoteOptions();
     saveState();
 }
@@ -1163,8 +1383,16 @@ function deleteRankingRow(button) {
         return;
     }
 
-    button.closest('tr').remove();
-    updateRankNumbers();
+    const row = button.closest('tr');
+    const rankingIndex = Number.parseInt(row && row.dataset.index ? row.dataset.index : '-1', 10);
+    const board = getCurrentBoard();
+
+    if (rankingIndex < 0 || rankingIndex >= board.rankings.length) {
+        return;
+    }
+
+    board.rankings.splice(rankingIndex, 1);
+    renderCurrentBoard();
     renderVoteOptions();
     saveState();
 }
@@ -1174,7 +1402,16 @@ function deleteUnranked(button) {
         return;
     }
 
-    button.closest('.unranked-item').remove();
+    const item = button.closest('.unranked-item');
+    const unrankedIndex = Number.parseInt(item && item.dataset.index ? item.dataset.index : '-1', 10);
+    const board = getCurrentBoard();
+
+    if (unrankedIndex < 0 || unrankedIndex >= board.unranked.length) {
+        return;
+    }
+
+    board.unranked.splice(unrankedIndex, 1);
+    renderCurrentBoard();
     renderVoteOptions();
     saveState();
 }
@@ -1182,7 +1419,18 @@ function deleteUnranked(button) {
 function updateRankNumbers() {
     const rows = document.querySelectorAll('#rankingsBody tr');
     rows.forEach((row, index) => {
+        row.dataset.index = String(index);
         row.querySelector('.rank-col').textContent = `🏆 ${index + 1}`;
+    });
+
+    const board = getCurrentBoard();
+    board.rankings.forEach((item, index) => {
+        item.rank = index + 1;
+    });
+
+    const unrankedItems = document.querySelectorAll('#unrankedList .unranked-item');
+    unrankedItems.forEach((item, index) => {
+        item.dataset.index = String(index);
     });
 }
 
@@ -1195,7 +1443,10 @@ function clearAll() {
         return;
     }
 
-    clearRenderedData();
+    const board = getCurrentBoard();
+    board.rankings = [];
+    board.unranked = [];
+    renderCurrentBoard();
     renderVoteOptions();
     saveState();
 }
@@ -1225,18 +1476,8 @@ async function saveState() {
 }
 
 function renderLoadedData(data) {
-    const rankings = Array.isArray(data && data.rankings) ? data.rankings : [];
-    const unranked = Array.isArray(data && data.unranked) ? data.unranked : [];
-
-    clearRenderedData();
-
-    rankings.forEach((item) => {
-        addToRankings(item.name, item.tier);
-    });
-
-    unranked.forEach((item) => {
-        addToUnranked(item.name, item.tier);
-    });
+    gamemodeBoards = normalizeGamemodeBoards(data);
+    setActiveGamemode(selectedGamemodeId);
 }
 
 async function loadSavedData() {
@@ -1245,6 +1486,7 @@ async function loadSavedData() {
     if (!isSupabaseConfigured()) {
         if (localData) {
             renderLoadedData(localData);
+            saveToLocalCache(collectCurrentData());
         }
         renderVoteOptions();
         setSyncStatus('Supabase ist nicht konfiguriert.', 'warning');
@@ -1257,7 +1499,7 @@ async function loadSavedData() {
 
         if (remoteData) {
             renderLoadedData(remoteData);
-            saveToLocalCache(remoteData);
+            saveToLocalCache(collectCurrentData());
             renderVoteOptions();
             setSyncStatus('Gemeinsame Liste geladen.', 'success');
             return;
@@ -1265,6 +1507,7 @@ async function loadSavedData() {
 
         if (localData) {
             renderLoadedData(localData);
+            saveToLocalCache(collectCurrentData());
             renderVoteOptions();
             setSyncStatus('Lokale Daten geladen.', 'warning');
             return;
@@ -1277,6 +1520,7 @@ async function loadSavedData() {
 
         if (localData) {
             renderLoadedData(localData);
+            saveToLocalCache(collectCurrentData());
             renderVoteOptions();
             setSyncStatus('Supabase nicht erreichbar - lokale Daten geladen.', 'warning');
             return;
@@ -1488,15 +1732,19 @@ async function initializeApp() {
     viewerKey = getViewerKey();
 
     const nameInput = document.getElementById('nameInput');
-    nameInput.addEventListener('keypress', (event) => {
-        if (event.key === 'Enter') {
-            addPlayer();
-        }
-    });
+    if (nameInput) {
+        nameInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                addPlayer();
+            }
+        });
+    }
 
     bindAdminActions();
     bindCommentActions();
     bindMusicControls();
+    initializeGamemodeSelector();
+    setActiveGamemode(selectedGamemodeId);
     restoreAdminSession();
     await loadSavedData();
     await Promise.all([loadComments(), loadViewerFeatures(), loadVisitorCounter()]);

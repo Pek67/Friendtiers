@@ -273,6 +273,39 @@ button:hover {
     flex-wrap: wrap;
 }
 
+.gamemode-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+.gamemode-controls label {
+    font-weight: 700;
+    color: #e8d9ff;
+}
+
+#gamemodeSelect {
+    min-width: 220px;
+    padding: 11px 14px;
+    border: 1px solid rgba(147, 101, 238, 0.45);
+    background: rgba(9, 8, 19, 0.94);
+    color: #f4efff;
+    border-radius: 10px;
+}
+
+#gamemodeSelect:focus {
+    outline: none;
+    border-color: #bc8dff;
+    box-shadow: 0 0 0 2px rgba(170, 118, 255, 0.22);
+}
+
+.active-gamemode-hint {
+    color: #cdb6ff;
+    font-size: 0.9em;
+}
+
 .input-group {
     display: flex;
     gap: 10px;
@@ -284,7 +317,8 @@ button:hover {
     flex: 1;
 }
 
-.viewer-mode .controls,
+.viewer-mode .input-group,
+.viewer-mode .clear-btn,
 .viewer-mode .admin-actions {
     display: none;
 }
