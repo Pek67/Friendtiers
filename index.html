@@ -139,15 +139,16 @@
                 <div class="viewer-card">
                     <div class="viewer-card-head">
                         <h3>🎵 Night Player</h3>
-                        <p>Endlose Ambient-Musik direkt im Browser.</p>
+                        <p>Lokale MP3-Playlist mit voller Songlaenge.</p>
                     </div>
                     <div class="music-player">
                         <div class="music-embed-shell">
                             <div class="music-visual">🎧 Purple Night Mix</div>
                         </div>
+                        <audio id="musicAudio" preload="metadata"></audio>
                         <div class="music-track-info">
                             <span id="musicTrackTitle" class="music-track-title">Kein Track geladen</span>
-                            <span id="musicTrackMeta" class="music-track-meta">Generated live im Browser</span>
+                            <span id="musicTrackMeta" class="music-track-meta">Lokale MP3-Datei</span>
                         </div>
                         <div class="music-controls">
                             <button id="musicPrevButton" type="button" class="secondary-btn">⏮</button>
@@ -160,7 +161,7 @@
                             <span class="volume-icon">🔊</span>
                             <span id="volumeLabel" class="volume-label">40%</span>
                         </div>
-                        <p id="musicCredit" class="music-credit">Quelle: Royalty-free Synth Soundscape (Browser)</p>
+                        <p id="musicCredit" class="music-credit">Quelle: Lokale Datei (assets/music)</p>
                         <p id="musicStatus" class="viewer-status" data-state="info">Bereit zum Starten.</p>
                     </div>
                 </div>

@@ -17,30 +17,36 @@ const DAILY_QUESTION = {
     text: 'Wie fuehlt sich die aktuelle Tierlist an?',
     choices: ['Perfekt akkurat', 'Bisschen wild', 'Reines Chaos']
 };
-const SYNTH_TRACKS = [
+const MP3_TRACKS = [
     {
-        title: 'Nebula Drift',
-        artist: 'FriendTiers Ambient',
-        sourceLabel: 'Generated live im Browser',
-        tempo: 64,
-        baseFreq: 174.61,
-        progression: [[0, 7, 12], [2, 9, 14], [5, 12, 17], [7, 14, 19]]
+        title: 'Track 01',
+        artist: 'FriendTiers Upload',
+        sourceLabel: 'assets/music/track-01.mp3',
+        filePath: 'assets/music/track-01.mp3'
     },
     {
-        title: 'Violet Horizon',
-        artist: 'FriendTiers Ambient',
-        sourceLabel: 'Generated live im Browser',
-        tempo: 72,
-        baseFreq: 196,
-        progression: [[0, 5, 10], [3, 8, 12], [5, 10, 15], [7, 12, 17]]
+        title: 'Track 02',
+        artist: 'FriendTiers Upload',
+        sourceLabel: 'assets/music/track-02.mp3',
+        filePath: 'assets/music/track-02.mp3'
     },
     {
-        title: 'Midnight Pulse',
-        artist: 'FriendTiers Ambient',
-        sourceLabel: 'Generated live im Browser',
-        tempo: 80,
-        baseFreq: 155.56,
-        progression: [[0, 7, 10], [2, 9, 12], [4, 11, 14], [7, 14, 17]]
+        title: 'Track 03',
+        artist: 'FriendTiers Upload',
+        sourceLabel: 'assets/music/track-03.mp3',
+        filePath: 'assets/music/track-03.mp3'
+    },
+    {
+        title: 'Track 04',
+        artist: 'FriendTiers Upload',
+        sourceLabel: 'assets/music/track-04.mp3',
+        filePath: 'assets/music/track-04.mp3'
+    },
+    {
+        title: 'Track 05',
+        artist: 'FriendTiers Upload',
+        sourceLabel: 'assets/music/track-05.mp3',
+        filePath: 'assets/music/track-05.mp3'
     }
 ];
 
@@ -69,10 +75,7 @@ let commentReactionCounts = {};
 let selectedCommentReactions = {};
 let visitorCount = 0;
 let currentTrackIndex = 0;
-let musicContext = null;
-let musicGain = null;
-let musicStepIndex = 0;
-let musicLoopTimer = null;
+let musicAudio = null;
 let currentMusicVolume = 40;
 let isMusicPlaying = false;
 
@@ -905,7 +908,7 @@ function renderDailyQuestion() {
 }
 
 function renderMusicTrackInfo() {
-    const currentTrack = SYNTH_TRACKS[currentTrackIndex];
+    const currentTrack = MP3_TRACKS[currentTrackIndex];
     const titleElement = document.getElementById('musicTrackTitle');
     const metaElement = document.getElementById('musicTrackMeta');
     const creditElement = document.getElementById('musicCredit');
@@ -919,7 +922,7 @@ function renderMusicTrackInfo() {
     }
 
     if (creditElement) {
-        creditElement.textContent = 'Quelle: Royalty-free Synth Soundscape (Browser)';
+        creditElement.textContent = `Quelle: ${currentTrack.filePath}`;
     }
 }
 
@@ -933,114 +936,73 @@ function updateMusicPlayButton() {
 }
 
 function applyMusicVolume() {
-    if (musicGain && musicContext) {
-        const target = Math.max(0.001, currentMusicVolume / 100);
-        musicGain.gain.setTargetAtTime(target, musicContext.currentTime, 0.08);
+    if (musicAudio) {
+        musicAudio.volume = Math.max(0, Math.min(1, currentMusicVolume / 100));
     }
 }
 
-function ensureMusicContext() {
-    if (musicContext) {
-        return musicContext;
+function ensureMusicAudioElement() {
+    if (musicAudio) {
+        return musicAudio;
     }
 
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtx) {
-        throw new Error('WebAudio wird von diesem Browser nicht unterstuetzt.');
+    const audioElement = document.getElementById('musicAudio');
+    if (!audioElement) {
+        throw new Error('Audio-Element fehlt.');
     }
 
-    musicContext = new AudioCtx();
-    musicGain = musicContext.createGain();
-    musicGain.gain.value = currentMusicVolume / 100;
-    musicGain.connect(musicContext.destination);
-    return musicContext;
+    musicAudio = audioElement;
+    musicAudio.addEventListener('ended', () => {
+        changeMusicTrack(1).catch((error) => {
+            console.error('Fehler beim automatischen Track-Wechsel:', error);
+            setMusicStatus('Naechster Track konnte nicht gestartet werden.', 'error');
+        });
+    });
+    applyMusicVolume();
+    return musicAudio;
 }
 
-function stopMusicLoop() {
-    if (musicLoopTimer) {
-        clearInterval(musicLoopTimer);
-        musicLoopTimer = null;
+function loadMusicTrack(index, keepPlaying = false) {
+    currentTrackIndex = (index + MP3_TRACKS.length) % MP3_TRACKS.length;
+    const track = MP3_TRACKS[currentTrackIndex];
+    const audio = ensureMusicAudioElement();
+
+    audio.src = track.filePath;
+    renderMusicTrackInfo();
+    applyMusicVolume();
+
+    if (keepPlaying) {
+        return audio.play().then(() => {
+            isMusicPlaying = true;
+            updateMusicPlayButton();
+            setMusicStatus(`Laeuft: ${track.title}`, 'success');
+        });
     }
+
+    audio.pause();
+    audio.currentTime = 0;
     isMusicPlaying = false;
     updateMusicPlayButton();
-}
-
-function playSynthStep() {
-    if (!musicContext || !musicGain) {
-        return;
-    }
-
-    const track = SYNTH_TRACKS[currentTrackIndex];
-    const progression = track.progression[musicStepIndex % track.progression.length];
-    const now = musicContext.currentTime;
-    const stepDuration = 60 / track.tempo;
-
-    progression.forEach((semitone, index) => {
-        const osc = musicContext.createOscillator();
-        const gain = musicContext.createGain();
-        const frequency = track.baseFreq * Math.pow(2, semitone / 12);
-
-        osc.type = index === 0 ? 'sine' : 'triangle';
-        osc.frequency.value = frequency;
-
-        gain.gain.setValueAtTime(0.0001, now);
-        gain.gain.exponentialRampToValueAtTime(0.11 / (index + 1), now + 0.16);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + stepDuration * 1.45);
-
-        osc.connect(gain);
-        gain.connect(musicGain);
-        osc.start(now);
-        osc.stop(now + stepDuration * 1.5);
-    });
-
-    const subOsc = musicContext.createOscillator();
-    const subGain = musicContext.createGain();
-    subOsc.type = 'sine';
-    subOsc.frequency.value = track.baseFreq / 2;
-    subGain.gain.setValueAtTime(0.0001, now);
-    subGain.gain.exponentialRampToValueAtTime(0.028, now + 0.1);
-    subGain.gain.exponentialRampToValueAtTime(0.0001, now + stepDuration * 1.5);
-    subOsc.connect(subGain);
-    subGain.connect(musicGain);
-    subOsc.start(now);
-    subOsc.stop(now + stepDuration * 1.55);
-
-    musicStepIndex += 1;
-}
-
-async function startMusicLoop() {
-    const ctx = ensureMusicContext();
-    if (ctx.state === 'suspended') {
-        await ctx.resume();
-    }
-
-    const track = SYNTH_TRACKS[currentTrackIndex];
-    const intervalMs = Math.round((60 / track.tempo) * 1000);
-    stopMusicLoop();
-    isMusicPlaying = true;
-    playSynthStep();
-    musicLoopTimer = setInterval(() => {
-        playSynthStep();
-    }, intervalMs);
-    updateMusicPlayButton();
-}
-
-function loadMusicTrack(index) {
-    currentTrackIndex = (index + SYNTH_TRACKS.length) % SYNTH_TRACKS.length;
-    musicStepIndex = 0;
-    const track = SYNTH_TRACKS[currentTrackIndex];
-    renderMusicTrackInfo();
-    updateMusicPlayButton();
     setMusicStatus(`Track bereit: ${track.title}`, 'info');
+    return Promise.resolve();
 }
 
 async function toggleMusicPlayback() {
     try {
+        const audio = ensureMusicAudioElement();
+        if (!audio.src) {
+            await loadMusicTrack(currentTrackIndex);
+        }
+
         if (!isMusicPlaying) {
-            await startMusicLoop();
-            setMusicStatus(`Laeuft: ${SYNTH_TRACKS[currentTrackIndex].title}`, 'success');
+            await audio.play();
+            isMusicPlaying = true;
+            updateMusicPlayButton();
+            setMusicStatus(`Laeuft: ${MP3_TRACKS[currentTrackIndex].title}`, 'success');
         } else {
-            stopMusicLoop();
+            audio.pause();
+            isMusicPlaying = false;
+            updateMusicPlayButton();
             setMusicStatus('Pausiert.', 'info');
         }
     } catch (error) {
@@ -1051,18 +1013,15 @@ async function toggleMusicPlayback() {
 
 async function changeMusicTrack(direction) {
     const shouldResume = isMusicPlaying;
-    loadMusicTrack(currentTrackIndex + direction);
-
-    if (shouldResume) {
-        await startMusicLoop();
-        setMusicStatus(`Laeuft: ${SYNTH_TRACKS[currentTrackIndex].title}`, 'success');
-    }
+    await loadMusicTrack(currentTrackIndex + direction, shouldResume);
 }
 
 function initializeMusicPlayer() {
-    renderMusicTrackInfo();
-    updateMusicPlayButton();
-    setMusicStatus('Bereit zum Starten.', 'info');
+    ensureMusicAudioElement();
+    loadMusicTrack(0).catch((error) => {
+        console.error('Fehler beim Vorbereiten des Musikplayers:', error);
+        setMusicStatus('Musik konnte nicht vorbereitet werden.', 'error');
+    });
 }
 
 function addPlayer() {

@@ -44,7 +44,7 @@ Danach speichert FriendTiers die Liste, Side-Kommentare, Votes, Reactions und di
 
 ## 🎵 Musik
 
-Der Player nutzt browsergenerierte, royalty-free Ambient-Musik. Steuerung (Play/Pause, Skip, Lautstaerke) erfolgt direkt auf der Seite.
+Der Player nutzt lokale MP3-Dateien und spielt komplette Songs ab. Steuerung (Play/Pause, Skip, Lautstaerke) erfolgt direkt auf der Seite.
 
 ## 📁 Dateistruktur
 
@@ -54,6 +54,13 @@ Friendtiers/
 ├── style.css
 ├── script.js
 ├── config.js
+├── assets/
+│   └── music/
+│       ├── track-01.mp3
+│       ├── track-02.mp3
+│       ├── track-03.mp3
+│       ├── track-04.mp3
+│       └── track-05.mp3
 ├── supabase.sql
 └── README.md
 ```
