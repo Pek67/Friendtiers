@@ -5,7 +5,7 @@ Eine einfache Ranking-Seite fuer dich und deine Freunde.
 ## ✨ Features
 
 - Browseruebergreifende Speicherung mit **Supabase**
-- Admin-Login per E-Mail ueber **Supabase Auth**
+- Einfaches Admin-Passwort fuer Bearbeitungen
 - Automatische lokale Zwischenablage als Fallback
 - Responsive UI fuer Desktop und Handy
 - Keine Build-Tools noetig, nur statische Dateien
@@ -27,17 +27,17 @@ Damit dieselben Daten in mehreren Browsern und auf mehreren Geraeten sichtbar si
 2. Oeffne im Supabase-Dashboard den **SQL Editor**.
 3. Fuehre den Inhalt aus `supabase.sql` aus.
 4. Oeffne `config.js`.
-5. Trage dort deine Werte aus **Project URL**, **anon public key** und deiner Admin-E-Mail ein.
+5. Trage dort deine Werte aus **Project URL**, **anon public key** und dem Admin-Passwort ein.
 
 ```js
 window.FRIENDTIERS_CONFIG = {
     supabaseUrl: 'https://DEIN-PROJEKT.supabase.co',
     supabaseAnonKey: 'DEIN_ANON_KEY',
-    adminEmail: 'deine@email.de'
+    adminPassword: '2312'
 };
 ```
 
-Danach speichert FriendTiers die Liste in Supabase und laedt sie in jedem Browser wieder. Aendern darf nur die eingetragene Admin-E-Mail nach dem Login-Link aus Supabase.
+Danach speichert FriendTiers die Liste in Supabase und laedt sie in jedem Browser wieder. Zum Bearbeiten muss auf der Website das eingetragene Passwort eingegeben werden.
 
 ## 📁 Dateistruktur
 
@@ -53,4 +53,4 @@ Friendtiers/
 
 ## 🔒 Hinweis
 
-Die Beispielkonfiguration in `config.js` ist absichtlich nur ein Platzhalter. Ohne echte Supabase-Werte bleibt die Seite lokal gespeichert.
+Die Passwort-Sperre ist nur eine einfache Frontend-Sperre. Wer den Quellcode untersucht, kann das Passwort theoretisch finden.

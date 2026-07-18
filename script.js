@@ -1,6 +1,7 @@
 const TIERS = ['HT1', 'LT1', 'HT2', 'LT2', 'HT3', 'LT3', 'HT4', 'LT4', 'HT5', 'LT5'];
 const MAX_RANKINGS = 20;
 const LOCAL_STORAGE_KEY = 'rankings-data';
+const ADMIN_SESSION_KEY = 'friendtiers-admin-unlocked';
 const SUPABASE_TABLE = 'friendtiers_state';
 const SUPABASE_ROW_ID = 'global';
 
@@ -18,7 +19,6 @@ const TIER_COLORS = {
 };
 
 let supabaseClient = null;
-let currentSession = null;
 let isAdmin = false;
 
 function getSyncStatusElement() {
@@ -29,7 +29,11 @@ function getAuthStatusElement() {
     return document.getElementById('authStatus');
 }
 
-function getAdminButtonElement() {
+function getPasswordInputElement() {
+    return document.getElementById('adminPasswordInput');
+}
+
+function getLoginButtonElement() {
     return document.getElementById('adminLoginButton');
 }
 
@@ -42,14 +46,14 @@ function getSupabaseConfig() {
         return {
             supabaseUrl: '',
             supabaseAnonKey: '',
-            adminEmail: ''
+            adminPassword: ''
         };
     }
 
     return {
         supabaseUrl: window.FRIENDTIERS_CONFIG.supabaseUrl || '',
         supabaseAnonKey: window.FRIENDTIERS_CONFIG.supabaseAnonKey || '',
-        adminEmail: window.FRIENDTIERS_CONFIG.adminEmail || ''
+        adminPassword: window.FRIENDTIERS_CONFIG.adminPassword || ''
     };
 }
 
@@ -62,12 +66,12 @@ function isSupabaseConfigured() {
     return !isPlaceholderValue(supabaseUrl) && !isPlaceholderValue(supabaseAnonKey);
 }
 
-function getAdminEmail() {
-    return getSupabaseConfig().adminEmail.trim().toLowerCase();
+function getAdminPassword() {
+    return getSupabaseConfig().adminPassword;
 }
 
 function isAdminConfigured() {
-    return !isPlaceholderValue(getAdminEmail());
+    return !isPlaceholderValue(getAdminPassword());
 }
 
 function getSupabaseClient() {
@@ -165,21 +169,19 @@ function setAuthStatus(message, state) {
     statusElement.dataset.state = state;
 }
 
-function getSessionEmail(session) {
-    if (!session || !session.user || !session.user.email) {
-        return '';
-    }
-
-    return session.user.email.trim().toLowerCase();
-}
-
-function updateAdminMode(nextIsAdmin, email) {
+function updateAdminMode(nextIsAdmin) {
     isAdmin = nextIsAdmin;
     document.body.classList.toggle('admin-mode', nextIsAdmin);
     document.body.classList.toggle('viewer-mode', !nextIsAdmin);
 
-    const loginButton = getAdminButtonElement();
+    const passwordInput = getPasswordInputElement();
+    const loginButton = getLoginButtonElement();
     const logoutButton = getLogoutButtonElement();
+
+    if (passwordInput) {
+        passwordInput.hidden = nextIsAdmin;
+        passwordInput.value = '';
+    }
 
     if (loginButton) {
         loginButton.hidden = nextIsAdmin;
@@ -190,16 +192,47 @@ function updateAdminMode(nextIsAdmin, email) {
     }
 
     if (nextIsAdmin) {
-        setAuthStatus(`Admin-Modus aktiv: ${email}`, 'success');
+        setAuthStatus('Admin-Modus aktiv.', 'success');
         return;
     }
 
-    if (!isSupabaseConfigured() || !isAdminConfigured()) {
-        setAuthStatus('Admin-Login ist noch nicht fertig konfiguriert.', 'warning');
+    if (!isAdminConfigured()) {
+        setAuthStatus('Admin-Passwort ist noch nicht konfiguriert.', 'warning');
         return;
     }
 
-    setAuthStatus('Nur Ansicht aktiv. Nur der Admin kann Eintraege aendern.', 'info');
+    setAuthStatus('Nur Ansicht aktiv. Zum Bearbeiten Passwort eingeben.', 'info');
+}
+
+function restoreAdminSession() {
+    updateAdminMode(sessionStorage.getItem(ADMIN_SESSION_KEY) === 'true');
+}
+
+function loginAsAdmin() {
+    if (!isAdminConfigured()) {
+        setAuthStatus('Admin-Passwort fehlt in der Konfiguration.', 'warning');
+        return;
+    }
+
+    const passwordInput = getPasswordInputElement();
+    const enteredPassword = passwordInput ? passwordInput.value : '';
+
+    if (enteredPassword !== getAdminPassword()) {
+        setAuthStatus('Falsches Passwort.', 'error');
+        if (passwordInput) {
+            passwordInput.focus();
+            passwordInput.select();
+        }
+        return;
+    }
+
+    sessionStorage.setItem(ADMIN_SESSION_KEY, 'true');
+    updateAdminMode(true);
+}
+
+function logoutAdmin() {
+    sessionStorage.removeItem(ADMIN_SESSION_KEY);
+    updateAdminMode(false);
 }
 
 function requireAdminAction() {
@@ -207,7 +240,7 @@ function requireAdminAction() {
         return true;
     }
 
-    alert('Nur der Admin kann die Liste bearbeiten.');
+    alert('Nur mit dem Admin-Passwort kannst du die Liste bearbeiten.');
     return false;
 }
 
@@ -242,59 +275,6 @@ async function loadFromSupabase() {
     }
 
     return data;
-}
-
-async function sendAdminMagicLink() {
-    if (!isSupabaseConfigured() || !isAdminConfigured()) {
-        setAuthStatus('Supabase oder Admin-E-Mail fehlt noch in der Konfiguration.', 'warning');
-        return;
-    }
-
-    const client = getSupabaseClient();
-    const adminEmail = getAdminEmail();
-    const redirectUrl = window.location.href.split('#')[0];
-    const loginButton = getAdminButtonElement();
-
-    if (loginButton) {
-        loginButton.disabled = true;
-    }
-
-    try {
-        setAuthStatus(`Sende Login-Link an ${adminEmail}...`, 'info');
-        const { error } = await client.auth.signInWithOtp({
-            email: adminEmail,
-            options: {
-                emailRedirectTo: redirectUrl
-            }
-        });
-
-        if (error) {
-            throw error;
-        }
-
-        setAuthStatus(`Login-Link wurde an ${adminEmail} gesendet.`, 'success');
-    } catch (error) {
-        console.error('Fehler beim Senden des Login-Links:', error);
-        setAuthStatus('Admin-Login-Link konnte nicht gesendet werden.', 'error');
-    } finally {
-        if (loginButton) {
-            loginButton.disabled = false;
-        }
-    }
-}
-
-async function logoutAdmin() {
-    const client = getSupabaseClient();
-
-    try {
-        const { error } = await client.auth.signOut();
-        if (error) {
-            throw error;
-        }
-    } catch (error) {
-        console.error('Fehler beim Abmelden:', error);
-        setAuthStatus('Abmelden fehlgeschlagen.', 'error');
-    }
 }
 
 function addPlayer() {
@@ -439,7 +419,7 @@ function clearAll() {
 
 async function saveState() {
     if (!isAdmin) {
-        setSyncStatus('Nur der Admin darf speichern.', 'warning');
+        setSyncStatus('Nur mit dem Admin-Passwort darf gespeichert werden.', 'warning');
         return;
     }
 
@@ -518,33 +498,14 @@ async function loadSavedData() {
     }
 }
 
-async function restoreAdminSession() {
-    if (!isSupabaseConfigured()) {
-        updateAdminMode(false, '');
-        return;
-    }
-
-    const client = getSupabaseClient();
-    const { data, error } = await client.auth.getSession();
-
-    if (error) {
-        console.error('Fehler beim Laden der Session:', error);
-        updateAdminMode(false, '');
-        return;
-    }
-
-    currentSession = data.session;
-    const email = getSessionEmail(currentSession);
-    updateAdminMode(email === getAdminEmail(), email);
-}
-
-function bindAuthButtons() {
-    const loginButton = getAdminButtonElement();
+function bindAdminActions() {
+    const loginButton = getLoginButtonElement();
     const logoutButton = getLogoutButtonElement();
+    const passwordInput = getPasswordInputElement();
 
     if (loginButton) {
         loginButton.addEventListener('click', () => {
-            sendAdminMagicLink();
+            loginAsAdmin();
         });
     }
 
@@ -553,19 +514,14 @@ function bindAuthButtons() {
             logoutAdmin();
         });
     }
-}
 
-function subscribeToAuthChanges() {
-    if (!isSupabaseConfigured()) {
-        return;
+    if (passwordInput) {
+        passwordInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                loginAsAdmin();
+            }
+        });
     }
-
-    const client = getSupabaseClient();
-    client.auth.onAuthStateChange((_event, session) => {
-        currentSession = session;
-        const email = getSessionEmail(session);
-        updateAdminMode(email === getAdminEmail(), email);
-    });
 }
 
 async function initializeApp() {
@@ -576,9 +532,8 @@ async function initializeApp() {
         }
     });
 
-    bindAuthButtons();
-    await restoreAdminSession();
-    subscribeToAuthChanges();
+    bindAdminActions();
+    restoreAdminSession();
     await loadSavedData();
 }
 

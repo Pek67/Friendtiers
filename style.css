@@ -84,6 +84,21 @@ header p {
     flex-wrap: wrap;
 }
 
+#adminPasswordInput {
+    padding: 12px 15px;
+    border: 2px solid #2a3050;
+    border-radius: 8px;
+    font-size: 1em;
+    background: #0f1426;
+    color: #e0e0e0;
+    min-width: 200px;
+}
+
+#adminPasswordInput:focus {
+    outline: none;
+    border-color: #4a7c7e;
+}
+
 .controls {
     display: flex;
     gap: 10px;
@@ -364,6 +379,10 @@ footer {
     .auth-panel {
         flex-direction: column;
         align-items: stretch;
+    }
+
+    .auth-actions {
+        flex-direction: column;
     }
 
     header h1 {
