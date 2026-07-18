@@ -6,7 +6,7 @@
     <title>FriendTiers - Rankings</title>
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="viewer-mode">
     <div class="container">
         <header>
             <h1>🎮 FriendTiers</h1>
@@ -14,6 +14,17 @@
         </header>
 
         <div class="main-content">
+            <div class="auth-panel">
+                <div class="auth-panel-text">
+                    <h2>🔐 Admin-Bereich</h2>
+                    <p id="authStatus" class="auth-status" data-state="info">Nur Ansicht aktiv.</p>
+                </div>
+                <div class="auth-actions">
+                    <button id="adminLoginButton" type="button">Admin-Login per E-Mail</button>
+                    <button id="adminLogoutButton" type="button" class="secondary-btn" hidden>Abmelden</button>
+                </div>
+            </div>
+
             <div class="controls">
                 <div class="input-group">
                     <input type="text" id="nameInput" placeholder="Spieler hinzufügen...">
@@ -46,7 +57,7 @@
                             <th class="rank-col">Rang</th>
                             <th class="name-col">Spieler</th>
                             <th class="tier-col">Tier</th>
-                            <th class="actions-col">Aktionen</th>
+                            <th class="actions-col admin-actions">Aktionen</th>
                         </tr>
                     </thead>
                     <tbody id="rankingsBody">

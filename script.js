@@ -18,29 +18,38 @@ const TIER_COLORS = {
 };
 
 let supabaseClient = null;
+let currentSession = null;
+let isAdmin = false;
 
 function getSyncStatusElement() {
     return document.getElementById('syncStatus');
 }
 
-function setSyncStatus(message, state) {
-    const statusElement = getSyncStatusElement();
-    if (!statusElement) {
-        return;
-    }
+function getAuthStatusElement() {
+    return document.getElementById('authStatus');
+}
 
-    statusElement.textContent = message;
-    statusElement.dataset.state = state;
+function getAdminButtonElement() {
+    return document.getElementById('adminLoginButton');
+}
+
+function getLogoutButtonElement() {
+    return document.getElementById('adminLogoutButton');
 }
 
 function getSupabaseConfig() {
     if (!window.FRIENDTIERS_CONFIG) {
-        return { supabaseUrl: '', supabaseAnonKey: '' };
+        return {
+            supabaseUrl: '',
+            supabaseAnonKey: '',
+            adminEmail: ''
+        };
     }
 
     return {
         supabaseUrl: window.FRIENDTIERS_CONFIG.supabaseUrl || '',
-        supabaseAnonKey: window.FRIENDTIERS_CONFIG.supabaseAnonKey || ''
+        supabaseAnonKey: window.FRIENDTIERS_CONFIG.supabaseAnonKey || '',
+        adminEmail: window.FRIENDTIERS_CONFIG.adminEmail || ''
     };
 }
 
@@ -51,6 +60,14 @@ function isPlaceholderValue(value) {
 function isSupabaseConfigured() {
     const { supabaseUrl, supabaseAnonKey } = getSupabaseConfig();
     return !isPlaceholderValue(supabaseUrl) && !isPlaceholderValue(supabaseAnonKey);
+}
+
+function getAdminEmail() {
+    return getSupabaseConfig().adminEmail.trim().toLowerCase();
+}
+
+function isAdminConfigured() {
+    return !isPlaceholderValue(getAdminEmail());
 }
 
 function getSupabaseClient() {
@@ -128,6 +145,72 @@ function saveToLocalCache(data) {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
 }
 
+function setSyncStatus(message, state) {
+    const statusElement = getSyncStatusElement();
+    if (!statusElement) {
+        return;
+    }
+
+    statusElement.textContent = message;
+    statusElement.dataset.state = state;
+}
+
+function setAuthStatus(message, state) {
+    const statusElement = getAuthStatusElement();
+    if (!statusElement) {
+        return;
+    }
+
+    statusElement.textContent = message;
+    statusElement.dataset.state = state;
+}
+
+function getSessionEmail(session) {
+    if (!session || !session.user || !session.user.email) {
+        return '';
+    }
+
+    return session.user.email.trim().toLowerCase();
+}
+
+function updateAdminMode(nextIsAdmin, email) {
+    isAdmin = nextIsAdmin;
+    document.body.classList.toggle('admin-mode', nextIsAdmin);
+    document.body.classList.toggle('viewer-mode', !nextIsAdmin);
+
+    const loginButton = getAdminButtonElement();
+    const logoutButton = getLogoutButtonElement();
+
+    if (loginButton) {
+        loginButton.hidden = nextIsAdmin;
+    }
+
+    if (logoutButton) {
+        logoutButton.hidden = !nextIsAdmin;
+    }
+
+    if (nextIsAdmin) {
+        setAuthStatus(`Admin-Modus aktiv: ${email}`, 'success');
+        return;
+    }
+
+    if (!isSupabaseConfigured() || !isAdminConfigured()) {
+        setAuthStatus('Admin-Login ist noch nicht fertig konfiguriert.', 'warning');
+        return;
+    }
+
+    setAuthStatus('Nur Ansicht aktiv. Nur der Admin kann Eintraege aendern.', 'info');
+}
+
+function requireAdminAction() {
+    if (isAdmin) {
+        return true;
+    }
+
+    alert('Nur der Admin kann die Liste bearbeiten.');
+    return false;
+}
+
 async function saveToSupabase(data) {
     const client = getSupabaseClient();
     const payload = {
@@ -161,7 +244,64 @@ async function loadFromSupabase() {
     return data;
 }
 
+async function sendAdminMagicLink() {
+    if (!isSupabaseConfigured() || !isAdminConfigured()) {
+        setAuthStatus('Supabase oder Admin-E-Mail fehlt noch in der Konfiguration.', 'warning');
+        return;
+    }
+
+    const client = getSupabaseClient();
+    const adminEmail = getAdminEmail();
+    const redirectUrl = window.location.href.split('#')[0];
+    const loginButton = getAdminButtonElement();
+
+    if (loginButton) {
+        loginButton.disabled = true;
+    }
+
+    try {
+        setAuthStatus(`Sende Login-Link an ${adminEmail}...`, 'info');
+        const { error } = await client.auth.signInWithOtp({
+            email: adminEmail,
+            options: {
+                emailRedirectTo: redirectUrl
+            }
+        });
+
+        if (error) {
+            throw error;
+        }
+
+        setAuthStatus(`Login-Link wurde an ${adminEmail} gesendet.`, 'success');
+    } catch (error) {
+        console.error('Fehler beim Senden des Login-Links:', error);
+        setAuthStatus('Admin-Login-Link konnte nicht gesendet werden.', 'error');
+    } finally {
+        if (loginButton) {
+            loginButton.disabled = false;
+        }
+    }
+}
+
+async function logoutAdmin() {
+    const client = getSupabaseClient();
+
+    try {
+        const { error } = await client.auth.signOut();
+        if (error) {
+            throw error;
+        }
+    } catch (error) {
+        console.error('Fehler beim Abmelden:', error);
+        setAuthStatus('Abmelden fehlgeschlagen.', 'error');
+    }
+}
+
 function addPlayer() {
+    if (!requireAdminAction()) {
+        return;
+    }
+
     const nameInput = document.getElementById('nameInput');
     const tierSelect = document.getElementById('tierSelect');
     const name = nameInput.value.trim();
@@ -205,7 +345,7 @@ function addToRankings(name, tier) {
     tierCell.appendChild(createTierBadge(tier));
 
     const actionsCell = document.createElement('td');
-    actionsCell.className = 'actions-col';
+    actionsCell.className = 'actions-col admin-actions';
     actionsCell.appendChild(createDeleteButton('✕', 'deleteRankingRow'));
 
     row.appendChild(rankCell);
@@ -226,18 +366,26 @@ function addToUnranked(name, tier) {
     nameElement.className = 'unranked-name';
     nameElement.textContent = name;
 
+    const actionsElement = document.createElement('div');
+    actionsElement.className = 'unranked-actions admin-actions';
+    actionsElement.appendChild(createDeleteButton('⬆️', 'moveToRankings'));
+    actionsElement.appendChild(createDeleteButton('✕', 'deleteUnranked'));
+
     item.appendChild(nameElement);
     item.appendChild(createTierBadge(tier));
-    item.appendChild(createDeleteButton('⬆️', 'moveToRankings'));
-    item.appendChild(createDeleteButton('✕', 'deleteUnranked'));
+    item.appendChild(actionsElement);
 
     unrankedList.appendChild(item);
 }
 
 function moveToRankings(button) {
+    if (!requireAdminAction()) {
+        return;
+    }
+
     const tbody = document.getElementById('rankingsBody');
     if (tbody.children.length >= MAX_RANKINGS) {
-        alert(`Die Rankings sind voll. Maximal ${MAX_RANKINGS} Einträge möglich.`);
+        alert(`Die Rankings sind voll. Maximal ${MAX_RANKINGS} Eintraege moeglich.`);
         return;
     }
 
@@ -251,12 +399,20 @@ function moveToRankings(button) {
 }
 
 function deleteRankingRow(button) {
+    if (!requireAdminAction()) {
+        return;
+    }
+
     button.closest('tr').remove();
     updateRankNumbers();
     saveState();
 }
 
 function deleteUnranked(button) {
+    if (!requireAdminAction()) {
+        return;
+    }
+
     button.closest('.unranked-item').remove();
     saveState();
 }
@@ -269,7 +425,11 @@ function updateRankNumbers() {
 }
 
 function clearAll() {
-    if (!confirm('Möchtest du wirklich alles löschen?')) {
+    if (!requireAdminAction()) {
+        return;
+    }
+
+    if (!confirm('Moechtest du wirklich alles loeschen?')) {
         return;
     }
 
@@ -278,11 +438,16 @@ function clearAll() {
 }
 
 async function saveState() {
+    if (!isAdmin) {
+        setSyncStatus('Nur der Admin darf speichern.', 'warning');
+        return;
+    }
+
     const data = collectCurrentData();
     saveToLocalCache(data);
 
     if (!isSupabaseConfigured()) {
-        setSyncStatus('Nur lokal gespeichert – trage zuerst deine Supabase-Daten ein.', 'warning');
+        setSyncStatus('Supabase ist nicht konfiguriert.', 'warning');
         return;
     }
 
@@ -292,7 +457,7 @@ async function saveState() {
         setSyncStatus('Online gespeichert.', 'success');
     } catch (error) {
         console.error('Fehler beim Speichern in Supabase:', error);
-        setSyncStatus('Speichern in Supabase fehlgeschlagen – lokale Kopie bleibt erhalten.', 'error');
+        setSyncStatus('Speichern in Supabase fehlgeschlagen.', 'error');
     }
 }
 
@@ -318,7 +483,7 @@ async function loadSavedData() {
         if (localData) {
             renderLoadedData(localData);
         }
-        setSyncStatus('Supabase noch nicht eingerichtet – aktuell nur lokal gespeichert.', 'warning');
+        setSyncStatus('Supabase ist nicht konfiguriert.', 'warning');
         return;
     }
 
@@ -335,18 +500,17 @@ async function loadSavedData() {
 
         if (localData) {
             renderLoadedData(localData);
-            await saveToSupabase(localData);
-            setSyncStatus('Lokale Daten nach Supabase migriert.', 'success');
+            setSyncStatus('Lokale Daten geladen.', 'warning');
             return;
         }
 
-        setSyncStatus('Bereit – die gemeinsame Liste ist noch leer.', 'info');
+        setSyncStatus('Bereit - die gemeinsame Liste ist noch leer.', 'info');
     } catch (error) {
         console.error('Fehler beim Laden aus Supabase:', error);
 
         if (localData) {
             renderLoadedData(localData);
-            setSyncStatus('Supabase nicht erreichbar – lokale Daten geladen.', 'warning');
+            setSyncStatus('Supabase nicht erreichbar - lokale Daten geladen.', 'warning');
             return;
         }
 
@@ -354,12 +518,74 @@ async function loadSavedData() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
-    document.getElementById('nameInput').addEventListener('keypress', (event) => {
+async function restoreAdminSession() {
+    if (!isSupabaseConfigured()) {
+        updateAdminMode(false, '');
+        return;
+    }
+
+    const client = getSupabaseClient();
+    const { data, error } = await client.auth.getSession();
+
+    if (error) {
+        console.error('Fehler beim Laden der Session:', error);
+        updateAdminMode(false, '');
+        return;
+    }
+
+    currentSession = data.session;
+    const email = getSessionEmail(currentSession);
+    updateAdminMode(email === getAdminEmail(), email);
+}
+
+function bindAuthButtons() {
+    const loginButton = getAdminButtonElement();
+    const logoutButton = getLogoutButtonElement();
+
+    if (loginButton) {
+        loginButton.addEventListener('click', () => {
+            sendAdminMagicLink();
+        });
+    }
+
+    if (logoutButton) {
+        logoutButton.addEventListener('click', () => {
+            logoutAdmin();
+        });
+    }
+}
+
+function subscribeToAuthChanges() {
+    if (!isSupabaseConfigured()) {
+        return;
+    }
+
+    const client = getSupabaseClient();
+    client.auth.onAuthStateChange((_event, session) => {
+        currentSession = session;
+        const email = getSessionEmail(session);
+        updateAdminMode(email === getAdminEmail(), email);
+    });
+}
+
+async function initializeApp() {
+    const nameInput = document.getElementById('nameInput');
+    nameInput.addEventListener('keypress', (event) => {
         if (event.key === 'Enter') {
             addPlayer();
         }
     });
 
+    bindAuthButtons();
+    await restoreAdminSession();
+    subscribeToAuthChanges();
     await loadSavedData();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initializeApp().catch((error) => {
+        console.error('Initialisierung fehlgeschlagen:', error);
+        setAuthStatus('Initialisierung fehlgeschlagen.', 'error');
+        setSyncStatus('Die Seite konnte nicht komplett geladen werden.', 'error');
+    });
 });

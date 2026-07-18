@@ -15,19 +15,21 @@ to anon, authenticated
 using (true);
 
 drop policy if exists "public can insert friendtiers state" on public.friendtiers_state;
-create policy "public can insert friendtiers state"
+drop policy if exists "admin can insert friendtiers state" on public.friendtiers_state;
+create policy "admin can insert friendtiers state"
 on public.friendtiers_state
 for insert
 to anon, authenticated
-with check (true);
+with check (lower(coalesce(auth.jwt() ->> 'email', '')) = 'peer.elsig@gmail.com');
 
 drop policy if exists "public can update friendtiers state" on public.friendtiers_state;
-create policy "public can update friendtiers state"
+drop policy if exists "admin can update friendtiers state" on public.friendtiers_state;
+create policy "admin can update friendtiers state"
 on public.friendtiers_state
 for update
 to anon, authenticated
-using (true)
-with check (true);
+using (lower(coalesce(auth.jwt() ->> 'email', '')) = 'peer.elsig@gmail.com')
+with check (lower(coalesce(auth.jwt() ->> 'email', '')) = 'peer.elsig@gmail.com');
 
 insert into public.friendtiers_state (id, rankings, unranked)
 values ('global', '[]'::jsonb, '[]'::jsonb)
