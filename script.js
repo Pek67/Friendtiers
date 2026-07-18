@@ -1,5 +1,5 @@
 const TIERS = ['HT1', 'LT1', 'HT2', 'LT2', 'HT3', 'LT3', 'HT4', 'LT4', 'HT5', 'LT5'];
-const MAX_RANKINGS = 20;
+const MAX_RANKINGS = 50;
 const LOCAL_STORAGE_KEY = 'rankings-data';
 const COMMENTS_LOCAL_KEY = 'friendtiers-comments-data';
 const ADMIN_SESSION_KEY = 'friendtiers-admin-unlocked';
