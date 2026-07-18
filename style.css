@@ -461,6 +461,56 @@ button:hover {
     min-width: 90px;
 }
 
+.music-volume-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.volume-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, #8a48e9, #3a1a7a);
+    outline: none;
+    cursor: pointer;
+}
+
+.volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #c084fc;
+    cursor: pointer;
+    box-shadow: 0 0 6px rgba(192, 132, 252, 0.6);
+}
+
+.volume-slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #c084fc;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 0 6px rgba(192, 132, 252, 0.6);
+}
+
+.volume-icon {
+    font-size: 0.9rem;
+}
+
+.volume-label {
+    font-size: 0.8rem;
+    color: #c084fc;
+    min-width: 36px;
+    text-align: right;
+}
+
 .rankings-section {
     margin-bottom: 32px;
 }

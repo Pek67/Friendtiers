@@ -938,7 +938,7 @@ function ensureMusicContext() {
 
     musicContext = new AudioCtx();
     musicGain = musicContext.createGain();
-    musicGain.gain.value = 0.08;
+    musicGain.gain.value = 0.35;
     musicGain.connect(musicContext.destination);
     return musicContext;
 }
@@ -1482,6 +1482,21 @@ function bindMusicControls() {
     if (nextButton) {
         nextButton.addEventListener('click', async () => {
             await changeMusicTrack(1);
+        });
+    }
+
+    const volumeSlider = document.getElementById('musicVolumeSlider');
+    const volumeLabel = document.getElementById('volumeLabel');
+    if (volumeSlider) {
+        volumeSlider.addEventListener('input', () => {
+            const val = parseInt(volumeSlider.value, 10);
+            if (volumeLabel) {
+                volumeLabel.textContent = `${val}%`;
+            }
+
+            if (musicGain) {
+                musicGain.gain.value = val / 100;
+            }
         });
     }
 

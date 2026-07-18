@@ -127,6 +127,12 @@
                             <button id="musicPlayButton" type="button">▶ Play</button>
                             <button id="musicNextButton" type="button" class="secondary-btn">⏭</button>
                         </div>
+                        <div class="music-volume-row">
+                            <span class="volume-icon">🔇</span>
+                            <input type="range" id="musicVolumeSlider" min="0" max="100" value="40" class="volume-slider" />
+                            <span class="volume-icon">🔊</span>
+                            <span id="volumeLabel" class="volume-label">40%</span>
+                        </div>
                         <p id="musicStatus" class="viewer-status" data-state="info">Bereit zum Starten.</p>
                     </div>
                 </div>
