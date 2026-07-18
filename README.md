@@ -8,7 +8,7 @@ Eine einfache Ranking-Seite fuer dich und deine Freunde.
 - Einfaches Admin-Passwort fuer Bearbeitungen
 - Zuschauer-Kommentare links und rechts
 - Live-Voting, Reactions und Daily-Frage fuer Zuschauer
-- Besucherzaehler, YouTube-Musik-Player und Admin-Reihenfolge
+- Besucherzaehler, Spotify-Musik-Player und Admin-Reihenfolge
 - Automatische lokale Zwischenablage als Fallback
 - Responsive UI fuer Desktop und Handy
 - Keine Build-Tools noetig, nur statische Dateien
@@ -44,7 +44,7 @@ Danach speichert FriendTiers die Liste, Side-Kommentare, Votes, Reactions und di
 
 ## 🎵 Musik
 
-Der Player nutzt eingebettete YouTube-Tracks mit eigener Play/Pause-, Skip- und Lautstaerke-Steuerung. Je nach Browser startet Musik erst nach einem Klick auf **Play**.
+Der Player nutzt einen eingebetteten Spotify-Playlist-Player. Steuerung (Play/Pause, Skip, Lautstaerke) erfolgt direkt im Spotify-Embed.
 
 ## 📁 Dateistruktur
 

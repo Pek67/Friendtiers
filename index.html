@@ -119,25 +119,21 @@
                     </div>
                     <div class="music-player">
                         <div class="music-embed-shell">
-                            <div id="youtubePlayer" aria-label="YouTube Musikplayer"></div>
+                            <iframe
+                                id="spotifyPlayer"
+                                src="https://open.spotify.com/embed/playlist/37i9dQZF1DX6VdMW310YC7?utm_source=generator"
+                                title="Spotify Chill Gaming Playlist"
+                                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                                loading="lazy"
+                                referrerpolicy="strict-origin-when-cross-origin">
+                            </iframe>
                         </div>
                         <div class="music-track-info">
-                            <span id="musicTrackTitle" class="music-track-title">Kein Track geladen</span>
-                            <span id="musicTrackMeta" class="music-track-meta">Royalty-free vibes</span>
+                            <span class="music-track-title">Spotify: Chill Gaming</span>
+                            <span class="music-track-meta">Offizielle Spotify-Playlist</span>
                         </div>
-                        <div class="music-controls">
-                            <button id="musicPrevButton" type="button" class="secondary-btn">⏮</button>
-                            <button id="musicPlayButton" type="button">▶ Play</button>
-                            <button id="musicNextButton" type="button" class="secondary-btn">⏭</button>
-                        </div>
-                        <div class="music-volume-row">
-                            <span class="volume-icon">🔇</span>
-                            <input type="range" id="musicVolumeSlider" min="0" max="100" value="40" class="volume-slider" />
-                            <span class="volume-icon">🔊</span>
-                            <span id="volumeLabel" class="volume-label">40%</span>
-                        </div>
-                        <p id="musicCredit" class="music-credit">Quelle: YouTube Audio Library / NCS, startet nach Klick.</p>
-                        <p id="musicStatus" class="viewer-status" data-state="info">Bereit zum Starten.</p>
+                        <p id="musicCredit" class="music-credit">Quelle: Spotify Embed · Playlist-ID 37i9dQZF1DX6VdMW310YC7</p>
+                        <p id="musicStatus" class="viewer-status" data-state="info">Spotify-Player geladen. Starte Musik direkt im Player.</p>
                     </div>
                 </div>
             </section>

@@ -1521,49 +1521,7 @@ function bindCommentActions() {
 }
 
 function bindMusicControls() {
-    const prevButton = document.getElementById('musicPrevButton');
-    const playButton = document.getElementById('musicPlayButton');
-    const nextButton = document.getElementById('musicNextButton');
-
-    if (prevButton) {
-        prevButton.addEventListener('click', async () => {
-            await changeMusicTrack(-1);
-        });
-    }
-
-    if (playButton) {
-        playButton.addEventListener('click', async () => {
-            await toggleMusicPlayback();
-        });
-    }
-
-    if (nextButton) {
-        nextButton.addEventListener('click', async () => {
-            await changeMusicTrack(1);
-        });
-    }
-
-    const volumeSlider = document.getElementById('musicVolumeSlider');
-    const volumeLabel = document.getElementById('volumeLabel');
-    if (volumeSlider) {
-        volumeSlider.addEventListener('input', () => {
-            const val = parseInt(volumeSlider.value, 10);
-            currentMusicVolume = val;
-            if (volumeLabel) {
-                volumeLabel.textContent = `${val}%`;
-            }
-
-            applyMusicVolume();
-        });
-
-        currentMusicVolume = parseInt(volumeSlider.value, 10);
-    }
-
-    if (volumeLabel) {
-        volumeLabel.textContent = `${currentMusicVolume}%`;
-    }
-
-    initializeMusicPlayer();
+    setMusicStatus('Spotify-Player geladen. Musik steuerst du direkt im Embed.', 'success');
 }
 
 async function initializeApp() {
