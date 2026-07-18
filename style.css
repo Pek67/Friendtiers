@@ -447,7 +447,47 @@ button:hover {
 }
 
 .side-discord-btn {
-    margin-bottom: 10px;
+    margin: 4px 0 12px;
+    padding: 16px 18px;
+    border-radius: 14px;
+    font-size: 1.02rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    background: linear-gradient(135deg, #8e5bff 0%, #5865f2 48%, #4d7aff 100%);
+    box-shadow:
+        0 0 0 1px rgba(182, 156, 255, 0.42),
+        0 0 24px rgba(98, 117, 255, 0.62),
+        0 0 52px rgba(116, 72, 255, 0.5);
+    animation: discordPulse 1.9s ease-in-out infinite;
+}
+
+.side-discord-btn:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow:
+        0 0 0 1px rgba(198, 177, 255, 0.6),
+        0 0 30px rgba(102, 123, 255, 0.74),
+        0 0 64px rgba(126, 83, 255, 0.62);
+}
+
+@keyframes discordPulse {
+    0% {
+        box-shadow:
+            0 0 0 1px rgba(182, 156, 255, 0.42),
+            0 0 20px rgba(98, 117, 255, 0.55),
+            0 0 42px rgba(116, 72, 255, 0.45);
+    }
+    50% {
+        box-shadow:
+            0 0 0 1px rgba(203, 184, 255, 0.64),
+            0 0 34px rgba(111, 130, 255, 0.78),
+            0 0 72px rgba(138, 96, 255, 0.7);
+    }
+    100% {
+        box-shadow:
+            0 0 0 1px rgba(182, 156, 255, 0.42),
+            0 0 20px rgba(98, 117, 255, 0.55),
+            0 0 42px rgba(116, 72, 255, 0.45);
+    }
 }
 
 .music-player {
