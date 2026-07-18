@@ -446,6 +446,10 @@ button:hover {
     filter: brightness(1.06);
 }
 
+.side-discord-btn {
+    margin-bottom: 10px;
+}
+
 .music-player {
     display: flex;
     flex-direction: column;
