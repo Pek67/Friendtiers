@@ -16,21 +16,17 @@ const GAMEMODES = [
     { id: 'sword', label: 'Sword' },
     { id: 'crystal', label: 'Crystal' },
     { id: 'uhc', label: 'UHC' },
-    { id: 'pot', label: 'Pot' },
-    { id: 'nethop', label: 'NethOP' },
+    { id: 'nethpot', label: 'NethPot' },
     { id: 'smp', label: 'SMP' },
     { id: 'axe', label: 'Axe' },
     { id: 'mace', label: 'Mace' },
-    { id: 'vanilla', label: 'Vanilla' },
-    { id: 'ltms', label: 'LTMs / 2v2' },
-    { id: 'sumo', label: 'Sumo' },
-    { id: 'nodebuff', label: 'NoDebuff' },
-    { id: 'builduhc', label: 'BuildUHC' },
-    { id: 'nethpot', label: 'NethPot' },
     { id: 'bedwars', label: 'Bedwars' },
     { id: 'skywars', label: 'Skywars' },
-    { id: 'boxing', label: 'Boxing' },
-    { id: 'overall', label: 'Overall' }
+    { id: 'builduhc', label: 'BuildUHC' },
+    { id: 'nodebuff', label: 'Nodebuff' },
+    { id: 'gapple', label: 'Gapple' },
+    { id: 'sumo', label: 'Sumo' },
+    { id: 'debuff', label: 'Debuff' }
 ];
 const DEFAULT_GAMEMODE_ID = GAMEMODES[0].id;
 const REACTION_EMOJIS = ['🔥', '👑', '😂'];

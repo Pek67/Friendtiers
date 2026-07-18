@@ -6,7 +6,7 @@ Eine einfache Ranking-Seite fuer dich und deine Freunde.
 
 - Browseruebergreifende Speicherung mit **Supabase**
 - Einfaches Admin-Passwort fuer Bearbeitungen
-- Separate Tierlisten pro Gamemode (inkl. Sword, Crystal, UHC, Pot, NethOP, SMP, Axe, Mace, Vanilla, LTMs/2v2, Sumo, NoDebuff, BuildUHC, NethPot, Bedwars, Skywars, Boxing, Overall)
+- Separate Tierlisten pro Gamemode (inkl. Sword, Crystal, UHC, NethPot, SMP, Axe, Mace, Bedwars, Skywars, BuildUHC, Nodebuff, Gapple, Sumo, Debuff)
 - Zuschauer-Kommentare links und rechts
 - Live-Voting, Reactions und Daily-Frage fuer Zuschauer
 - Discord-Join-Button direkt auf der Website
@@ -47,7 +47,7 @@ Danach speichert FriendTiers die Liste, Side-Kommentare, Votes, Reactions und di
 ## 🕹️ Multi-Gamemode Tierlisten
 
 - Jeder Gamemode hat eine eigene Ranking-/Unranked-Liste.
-- Verfuegbare Modi: Sword, Crystal, UHC, Pot, NethOP, SMP, Axe, Mace, Vanilla, LTMs/2v2, Sumo, NoDebuff, BuildUHC, NethPot, Bedwars, Skywars, Boxing, Overall.
+- Verfuegbare Modi: Sword, Crystal, UHC, NethPot, SMP, Axe, Mace, Bedwars, Skywars, BuildUHC, Nodebuff, Gapple, Sumo, Debuff.
 - Das Dropdown oberhalb der Tabelle wechselt den aktiven Gamemode fuer Admins und Viewer.
 - **MAX_RANKINGS (50) gilt pro Gamemode**.
 - Alte Daten mit nur einer globalen Liste werden automatisch nach **Sword** migriert, damit nichts verloren geht.
