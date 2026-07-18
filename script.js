@@ -17,24 +17,30 @@ const DAILY_QUESTION = {
     text: 'Wie fuehlt sich die aktuelle Tierlist an?',
     choices: ['Perfekt akkurat', 'Bisschen wild', 'Reines Chaos']
 };
-const MUSIC_TRACKS = [
+const SYNTH_TRACKS = [
     {
-        title: 'Gymnopedie No. 1',
-        artist: 'Erik Satie',
-        sourceLabel: 'Public Domain / Wikimedia Commons',
-        url: 'https://upload.wikimedia.org/wikipedia/commons/5/55/Gymnopedie_No_1.mp3'
+        title: 'Nebula Drift',
+        artist: 'FriendTiers Ambient',
+        sourceLabel: 'Generated live im Browser',
+        tempo: 64,
+        baseFreq: 174.61,
+        progression: [[0, 7, 12], [2, 9, 14], [5, 12, 17], [7, 14, 19]]
     },
     {
-        title: 'Clair de Lune',
-        artist: 'Claude Debussy',
-        sourceLabel: 'Public Domain / Wikimedia Commons',
-        url: 'https://upload.wikimedia.org/wikipedia/commons/4/41/Clair_de_Lune_-_Claude_Debussy.ogg'
+        title: 'Violet Horizon',
+        artist: 'FriendTiers Ambient',
+        sourceLabel: 'Generated live im Browser',
+        tempo: 72,
+        baseFreq: 196,
+        progression: [[0, 5, 10], [3, 8, 12], [5, 10, 15], [7, 12, 17]]
     },
     {
-        title: 'Moonlight Sonata',
-        artist: 'Ludwig van Beethoven',
-        sourceLabel: 'Public Domain / Wikimedia Commons',
-        url: 'https://upload.wikimedia.org/wikipedia/commons/1/16/Beethoven_Moonlight_sonata%2C_1st_movement.ogg'
+        title: 'Midnight Pulse',
+        artist: 'FriendTiers Ambient',
+        sourceLabel: 'Generated live im Browser',
+        tempo: 80,
+        baseFreq: 155.56,
+        progression: [[0, 7, 10], [2, 9, 12], [4, 11, 14], [7, 14, 17]]
     }
 ];
 
@@ -63,6 +69,11 @@ let commentReactionCounts = {};
 let selectedCommentReactions = {};
 let visitorCount = 0;
 let currentTrackIndex = 0;
+let musicContext = null;
+let musicGain = null;
+let musicStepIndex = 0;
+let musicLoopTimer = null;
+let isMusicPlaying = false;
 
 function getSyncStatusElement() {
     return document.getElementById('syncStatus');
@@ -82,10 +93,6 @@ function getLoginButtonElement() {
 
 function getLogoutButtonElement() {
     return document.getElementById('adminLogoutButton');
-}
-
-function getAudioElement() {
-    return document.getElementById('ambientAudio');
 }
 
 function getMusicPlayButtonElement() {
@@ -897,7 +904,7 @@ function renderDailyQuestion() {
 }
 
 function renderMusicTrackInfo() {
-    const currentTrack = MUSIC_TRACKS[currentTrackIndex];
+    const currentTrack = SYNTH_TRACKS[currentTrackIndex];
     const titleElement = document.getElementById('musicTrackTitle');
     const metaElement = document.getElementById('musicTrackMeta');
 
@@ -912,47 +919,117 @@ function renderMusicTrackInfo() {
 
 function updateMusicPlayButton() {
     const playButton = getMusicPlayButtonElement();
-    const audio = getAudioElement();
-    if (!playButton || !audio) {
+    if (!playButton) {
         return;
     }
 
-    playButton.textContent = audio.paused ? '▶ Play' : '⏸ Pause';
+    playButton.textContent = isMusicPlaying ? '⏸ Pause' : '▶ Play';
+}
+
+function ensureMusicContext() {
+    if (musicContext) {
+        return musicContext;
+    }
+
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) {
+        throw new Error('WebAudio wird von diesem Browser nicht unterstuetzt.');
+    }
+
+    musicContext = new AudioCtx();
+    musicGain = musicContext.createGain();
+    musicGain.gain.value = 0.08;
+    musicGain.connect(musicContext.destination);
+    return musicContext;
+}
+
+function stopMusicLoop() {
+    if (musicLoopTimer) {
+        clearInterval(musicLoopTimer);
+        musicLoopTimer = null;
+    }
+    isMusicPlaying = false;
+    updateMusicPlayButton();
+}
+
+function playSynthStep() {
+    if (!musicContext || !musicGain) {
+        return;
+    }
+
+    const track = SYNTH_TRACKS[currentTrackIndex];
+    const progression = track.progression[musicStepIndex % track.progression.length];
+    const now = musicContext.currentTime;
+    const stepDuration = 60 / track.tempo;
+
+    progression.forEach((semitone, index) => {
+        const osc = musicContext.createOscillator();
+        const gain = musicContext.createGain();
+        const frequency = track.baseFreq * Math.pow(2, semitone / 12);
+
+        osc.type = index === 0 ? 'sine' : 'triangle';
+        osc.frequency.value = frequency;
+
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(0.08 / (index + 1), now + 0.18);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + stepDuration * 1.5);
+
+        osc.connect(gain);
+        gain.connect(musicGain);
+        osc.start(now);
+        osc.stop(now + stepDuration * 1.6);
+    });
+
+    const subOsc = musicContext.createOscillator();
+    const subGain = musicContext.createGain();
+    subOsc.type = 'sine';
+    subOsc.frequency.value = track.baseFreq / 2;
+    subGain.gain.setValueAtTime(0.0001, now);
+    subGain.gain.exponentialRampToValueAtTime(0.03, now + 0.1);
+    subGain.gain.exponentialRampToValueAtTime(0.0001, now + stepDuration * 1.6);
+    subOsc.connect(subGain);
+    subGain.connect(musicGain);
+    subOsc.start(now);
+    subOsc.stop(now + stepDuration * 1.7);
+
+    musicStepIndex += 1;
+}
+
+async function startMusicLoop() {
+    const ctx = ensureMusicContext();
+    if (ctx.state === 'suspended') {
+        await ctx.resume();
+    }
+
+    const track = SYNTH_TRACKS[currentTrackIndex];
+    const intervalMs = Math.round((60 / track.tempo) * 1000);
+    stopMusicLoop();
+    isMusicPlaying = true;
+    playSynthStep();
+    musicLoopTimer = setInterval(() => {
+        playSynthStep();
+    }, intervalMs);
+    updateMusicPlayButton();
 }
 
 function loadMusicTrack(index) {
-    const audio = getAudioElement();
-    if (!audio) {
-        return;
-    }
-
-    currentTrackIndex = (index + MUSIC_TRACKS.length) % MUSIC_TRACKS.length;
-    const track = MUSIC_TRACKS[currentTrackIndex];
-    audio.src = track.url;
+    currentTrackIndex = (index + SYNTH_TRACKS.length) % SYNTH_TRACKS.length;
+    musicStepIndex = 0;
+    const track = SYNTH_TRACKS[currentTrackIndex];
     renderMusicTrackInfo();
     updateMusicPlayButton();
     setMusicStatus(`Track bereit: ${track.title}`, 'info');
 }
 
 async function toggleMusicPlayback() {
-    const audio = getAudioElement();
-    if (!audio) {
-        return;
-    }
-
-    if (!audio.src) {
-        loadMusicTrack(currentTrackIndex);
-    }
-
     try {
-        if (audio.paused) {
-            await audio.play();
-            setMusicStatus(`Laeuft: ${MUSIC_TRACKS[currentTrackIndex].title}`, 'success');
+        if (!isMusicPlaying) {
+            await startMusicLoop();
+            setMusicStatus(`Laeuft: ${SYNTH_TRACKS[currentTrackIndex].title}`, 'success');
         } else {
-            audio.pause();
+            stopMusicLoop();
             setMusicStatus('Pausiert.', 'info');
         }
-        updateMusicPlayButton();
     } catch (error) {
         console.error('Fehler beim Starten der Musik:', error);
         setMusicStatus('Musik konnte nicht gestartet werden.', 'error');
@@ -960,13 +1037,12 @@ async function toggleMusicPlayback() {
 }
 
 async function changeMusicTrack(direction) {
-    const audio = getAudioElement();
-    const shouldResume = audio ? !audio.paused : false;
-
+    const shouldResume = isMusicPlaying;
     loadMusicTrack(currentTrackIndex + direction);
 
     if (shouldResume) {
-        await toggleMusicPlayback();
+        await startMusicLoop();
+        setMusicStatus(`Laeuft: ${SYNTH_TRACKS[currentTrackIndex].title}`, 'success');
     }
 }
 
@@ -1390,11 +1466,6 @@ function bindMusicControls() {
     const prevButton = document.getElementById('musicPrevButton');
     const playButton = document.getElementById('musicPlayButton');
     const nextButton = document.getElementById('musicNextButton');
-    const audio = getAudioElement();
-
-    if (!audio) {
-        return;
-    }
 
     if (prevButton) {
         prevButton.addEventListener('click', async () => {
@@ -1413,31 +1484,6 @@ function bindMusicControls() {
             await changeMusicTrack(1);
         });
     }
-
-    audio.addEventListener('ended', async () => {
-        loadMusicTrack(currentTrackIndex + 1);
-        try {
-            await audio.play();
-            setMusicStatus(`Laeuft: ${MUSIC_TRACKS[currentTrackIndex].title}`, 'success');
-            updateMusicPlayButton();
-        } catch (error) {
-            console.error('Fehler beim automatischen Trackwechsel:', error);
-            setMusicStatus('Naechster Track konnte nicht automatisch starten.', 'error');
-        }
-    });
-
-    audio.addEventListener('pause', () => {
-        updateMusicPlayButton();
-    });
-
-    audio.addEventListener('play', () => {
-        updateMusicPlayButton();
-    });
-
-    audio.addEventListener('error', () => {
-        setMusicStatus('Track konnte nicht geladen werden.', 'error');
-        updateMusicPlayButton();
-    });
 
     loadMusicTrack(0);
 }
