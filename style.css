@@ -447,12 +447,9 @@ button:hover {
 }
 
 .floating-discord-cta {
-    position: fixed;
-    top: 96px;
-    right: 300px;
-    z-index: 12;
-    width: 360px;
-    margin: 0;
+    display: inline-flex;
+    width: min(420px, calc(100% - 24px));
+    margin: 16px auto 0;
     padding: 22px 24px;
     border-radius: 16px;
     font-size: 1.22rem;
@@ -867,14 +864,6 @@ footer {
 }
 
 @media (max-width: 1590px) {
-    .floating-discord-cta {
-        position: static;
-        display: flex;
-        width: min(420px, calc(100% - 28px));
-        max-width: 420px;
-        margin: 0 auto 14px;
-    }
-
     .side-panel {
         position: static;
         width: auto;
