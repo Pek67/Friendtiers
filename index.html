@@ -81,6 +81,30 @@
                 Starte...
             </div>
 
+            <div class="rankings-section">
+                <h2>🏆 Gesamtrankings</h2>
+                <table class="rankings-table">
+                    <thead>
+                        <tr>
+                            <th class="rank-col">Rang</th>
+                            <th class="name-col">Spieler</th>
+                            <th class="tier-col">Tier</th>
+                            <th class="actions-col admin-actions">Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rankingsBody">
+                        <!-- Dynamisch gefüllt -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="unranked-section">
+                <h3>📋 Nicht eingeordnet</h3>
+                <div class="unranked-list" id="unrankedList">
+                    <!-- Dynamisch gefüllt -->
+                </div>
+            </div>
+
             <section class="viewer-hub">
                 <div class="viewer-card">
                     <div class="viewer-card-head">
@@ -115,52 +139,32 @@
                 <div class="viewer-card">
                     <div class="viewer-card-head">
                         <h3>🎵 Night Player</h3>
-                        <p>Lizenzfreie / public-domain Musik fuer die Stimmung.</p>
+                        <p>Endlose Ambient-Musik direkt im Browser.</p>
                     </div>
                     <div class="music-player">
                         <div class="music-embed-shell">
-                            <iframe
-                                id="spotifyPlayer"
-                                src="https://open.spotify.com/embed/playlist/37i9dQZF1DX6VdMW310YC7?utm_source=generator"
-                                title="Spotify Chill Gaming Playlist"
-                                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                                loading="lazy"
-                                referrerpolicy="strict-origin-when-cross-origin">
-                            </iframe>
+                            <div class="music-visual">🎧 Purple Night Mix</div>
                         </div>
                         <div class="music-track-info">
-                            <span class="music-track-title">Spotify: Chill Gaming</span>
-                            <span class="music-track-meta">Offizielle Spotify-Playlist</span>
+                            <span id="musicTrackTitle" class="music-track-title">Kein Track geladen</span>
+                            <span id="musicTrackMeta" class="music-track-meta">Generated live im Browser</span>
                         </div>
-                        <p id="musicCredit" class="music-credit">Quelle: Spotify Embed · Playlist-ID 37i9dQZF1DX6VdMW310YC7</p>
-                        <p id="musicStatus" class="viewer-status" data-state="info">Spotify-Player geladen. Starte Musik direkt im Player.</p>
+                        <div class="music-controls">
+                            <button id="musicPrevButton" type="button" class="secondary-btn">⏮</button>
+                            <button id="musicPlayButton" type="button">▶ Play</button>
+                            <button id="musicNextButton" type="button" class="secondary-btn">⏭</button>
+                        </div>
+                        <div class="music-volume-row">
+                            <span class="volume-icon">🔇</span>
+                            <input type="range" id="musicVolumeSlider" min="0" max="100" value="40" class="volume-slider" />
+                            <span class="volume-icon">🔊</span>
+                            <span id="volumeLabel" class="volume-label">40%</span>
+                        </div>
+                        <p id="musicCredit" class="music-credit">Quelle: Royalty-free Synth Soundscape (Browser)</p>
+                        <p id="musicStatus" class="viewer-status" data-state="info">Bereit zum Starten.</p>
                     </div>
                 </div>
             </section>
-
-            <div class="rankings-section">
-                <h2>🏆 Gesamtrankings</h2>
-                <table class="rankings-table">
-                    <thead>
-                        <tr>
-                            <th class="rank-col">Rang</th>
-                            <th class="name-col">Spieler</th>
-                            <th class="tier-col">Tier</th>
-                            <th class="actions-col admin-actions">Aktionen</th>
-                        </tr>
-                    </thead>
-                    <tbody id="rankingsBody">
-                        <!-- Dynamisch gefüllt -->
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="unranked-section">
-                <h3>📋 Nicht eingeordnet</h3>
-                <div class="unranked-list" id="unrankedList">
-                    <!-- Dynamisch gefüllt -->
-                </div>
-            </div>
         </div>
 
         <footer>

@@ -442,10 +442,41 @@ button:hover {
     aspect-ratio: 16 / 9;
 }
 
-#spotifyPlayer {
+.music-visual {
+    display: flex;
     width: 100%;
     height: 100%;
-    border: 0;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #ddc3ff;
+    text-shadow: 0 0 12px rgba(157, 78, 221, 0.7);
+    letter-spacing: 0.03em;
+    background: radial-gradient(circle at 50% 50%, rgba(141, 71, 234, 0.35), rgba(12, 8, 20, 0.96));
+}
+
+.music-visual::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+        120deg,
+        rgba(170, 120, 245, 0.06) 0 12px,
+        rgba(28, 18, 45, 0.06) 12px 24px
+    );
+    animation: pulseVisual 7s linear infinite;
+}
+
+@keyframes pulseVisual {
+    0% { opacity: 0.4; transform: scale(1); }
+    50% { opacity: 0.9; transform: scale(1.02); }
+    100% { opacity: 0.4; transform: scale(1); }
+}
+
+.music-player audio {
+    width: 100%;
+    display: none;
 }
 
 .music-track-info {

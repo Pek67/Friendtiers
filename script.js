@@ -17,27 +17,30 @@ const DAILY_QUESTION = {
     text: 'Wie fuehlt sich die aktuelle Tierlist an?',
     choices: ['Perfekt akkurat', 'Bisschen wild', 'Reines Chaos']
 };
-const YOUTUBE_TRACKS = [
+const SYNTH_TRACKS = [
     {
-        title: 'Under Water',
-        artist: 'Silent Partner',
-        sourceLabel: 'YouTube Audio Library',
-        videoId: '--8j2Q2HlaM',
-        creditLine: 'YouTube Audio Library License'
+        title: 'Nebula Drift',
+        artist: 'FriendTiers Ambient',
+        sourceLabel: 'Generated live im Browser',
+        tempo: 64,
+        baseFreq: 174.61,
+        progression: [[0, 7, 12], [2, 9, 14], [5, 12, 17], [7, 14, 19]]
     },
     {
-        title: 'Sunday Drive',
-        artist: 'Silent Partner',
-        sourceLabel: 'YouTube Audio Library',
-        videoId: 'TtBXwBfiA9Y',
-        creditLine: 'YouTube Audio Library License'
+        title: 'Violet Horizon',
+        artist: 'FriendTiers Ambient',
+        sourceLabel: 'Generated live im Browser',
+        tempo: 72,
+        baseFreq: 196,
+        progression: [[0, 5, 10], [3, 8, 12], [5, 10, 15], [7, 12, 17]]
     },
     {
-        title: 'Taking It Slow',
-        artist: 'JVNA',
-        sourceLabel: 'NCS / YouTube',
-        videoId: 'J7Z9agfq3Jw',
-        creditLine: 'Track: JVNA - Taking It Slow | Music provided by NoCopyrightSounds.'
+        title: 'Midnight Pulse',
+        artist: 'FriendTiers Ambient',
+        sourceLabel: 'Generated live im Browser',
+        tempo: 80,
+        baseFreq: 155.56,
+        progression: [[0, 7, 10], [2, 9, 12], [4, 11, 14], [7, 14, 17]]
     }
 ];
 
@@ -66,9 +69,10 @@ let commentReactionCounts = {};
 let selectedCommentReactions = {};
 let visitorCount = 0;
 let currentTrackIndex = 0;
-let youtubePlayer = null;
-let youtubeApiReadyPromise = null;
-let youtubePlayerReady = false;
+let musicContext = null;
+let musicGain = null;
+let musicStepIndex = 0;
+let musicLoopTimer = null;
 let currentMusicVolume = 40;
 let isMusicPlaying = false;
 
@@ -901,7 +905,7 @@ function renderDailyQuestion() {
 }
 
 function renderMusicTrackInfo() {
-    const currentTrack = YOUTUBE_TRACKS[currentTrackIndex];
+    const currentTrack = SYNTH_TRACKS[currentTrackIndex];
     const titleElement = document.getElementById('musicTrackTitle');
     const metaElement = document.getElementById('musicTrackMeta');
     const creditElement = document.getElementById('musicCredit');
@@ -915,7 +919,7 @@ function renderMusicTrackInfo() {
     }
 
     if (creditElement) {
-        creditElement.textContent = currentTrack.creditLine;
+        creditElement.textContent = 'Quelle: Royalty-free Synth Soundscape (Browser)';
     }
 }
 
@@ -929,179 +933,136 @@ function updateMusicPlayButton() {
 }
 
 function applyMusicVolume() {
-    if (youtubePlayerReady && youtubePlayer && typeof youtubePlayer.setVolume === 'function') {
-        youtubePlayer.setVolume(currentMusicVolume);
+    if (musicGain && musicContext) {
+        const target = Math.max(0.001, currentMusicVolume / 100);
+        musicGain.gain.setTargetAtTime(target, musicContext.currentTime, 0.08);
     }
 }
 
-function ensureYouTubeApi() {
-    if (window.YT && typeof window.YT.Player === 'function') {
-        return Promise.resolve(window.YT);
+function ensureMusicContext() {
+    if (musicContext) {
+        return musicContext;
     }
 
-    if (youtubeApiReadyPromise) {
-        return youtubeApiReadyPromise;
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) {
+        throw new Error('WebAudio wird von diesem Browser nicht unterstuetzt.');
     }
 
-    youtubeApiReadyPromise = new Promise((resolve, reject) => {
-        const existingHandler = window.onYouTubeIframeAPIReady;
-        const script = document.createElement('script');
-
-        window.onYouTubeIframeAPIReady = () => {
-            if (typeof existingHandler === 'function') {
-                existingHandler();
-            }
-            resolve(window.YT);
-        };
-
-        script.src = 'https://www.youtube.com/iframe_api';
-        script.async = true;
-        script.onerror = () => reject(new Error('YouTube API konnte nicht geladen werden.'));
-        document.head.appendChild(script);
-    });
-
-    return youtubeApiReadyPromise;
+    musicContext = new AudioCtx();
+    musicGain = musicContext.createGain();
+    musicGain.gain.value = currentMusicVolume / 100;
+    musicGain.connect(musicContext.destination);
+    return musicContext;
 }
 
-function handleYouTubePlayerStateChange(event) {
-    if (!window.YT || !window.YT.PlayerState) {
-        return;
+function stopMusicLoop() {
+    if (musicLoopTimer) {
+        clearInterval(musicLoopTimer);
+        musicLoopTimer = null;
     }
-
-    if (event.data === window.YT.PlayerState.PLAYING) {
-        isMusicPlaying = true;
-        updateMusicPlayButton();
-        setMusicStatus(`Laeuft: ${YOUTUBE_TRACKS[currentTrackIndex].title}`, 'success');
-        return;
-    }
-
-    if (event.data === window.YT.PlayerState.PAUSED) {
-        isMusicPlaying = false;
-        updateMusicPlayButton();
-        setMusicStatus('Pausiert.', 'info');
-        return;
-    }
-
-    if (event.data === window.YT.PlayerState.ENDED) {
-        isMusicPlaying = false;
-        updateMusicPlayButton();
-        changeMusicTrack(1, true).catch((error) => {
-            console.error('Fehler beim Wechsel zum naechsten Track:', error);
-            setMusicStatus('Naechster Track konnte nicht geladen werden.', 'error');
-        });
-    }
-}
-
-async function ensureMusicPlayer() {
-    if (youtubePlayer) {
-        return youtubePlayer;
-    }
-
-    await ensureYouTubeApi();
-
-    const playerElement = document.getElementById('youtubePlayer');
-    if (!playerElement) {
-        throw new Error('YouTube-Player Element fehlt.');
-    }
-
-    const initialTrack = YOUTUBE_TRACKS[currentTrackIndex];
-
-    return new Promise((resolve, reject) => {
-        youtubePlayer = new window.YT.Player('youtubePlayer', {
-            videoId: initialTrack.videoId,
-            playerVars: {
-                autoplay: 0,
-                controls: 0,
-                disablekb: 1,
-                fs: 0,
-                modestbranding: 1,
-                playsinline: 1,
-                rel: 0
-            },
-            events: {
-                onReady: () => {
-                    youtubePlayerReady = true;
-                    applyMusicVolume();
-                    resolve(youtubePlayer);
-                },
-                onStateChange: handleYouTubePlayerStateChange,
-                onError: () => {
-                    isMusicPlaying = false;
-                    updateMusicPlayButton();
-                    setMusicStatus('YouTube konnte diesen Track nicht abspielen.', 'error');
-                }
-            }
-        });
-
-        window.setTimeout(() => {
-            if (!youtubePlayerReady) {
-                reject(new Error('YouTube-Player wurde nicht rechtzeitig bereit.'));
-            }
-        }, 15000);
-    });
-}
-
-async function loadMusicTrack(index, options = {}) {
-    const { autoplay = false } = options;
-    currentTrackIndex = (index + YOUTUBE_TRACKS.length) % YOUTUBE_TRACKS.length;
-    const track = YOUTUBE_TRACKS[currentTrackIndex];
-
-    renderMusicTrackInfo();
-
-    const player = await ensureMusicPlayer();
-    if (autoplay) {
-        player.loadVideoById(track.videoId);
-        isMusicPlaying = true;
-        setMusicStatus(`Laeuft: ${track.title}`, 'success');
-    } else {
-        player.cueVideoById(track.videoId);
-        isMusicPlaying = false;
-        setMusicStatus(`Track bereit: ${track.title}`, 'info');
-    }
-
-    applyMusicVolume();
+    isMusicPlaying = false;
     updateMusicPlayButton();
+}
+
+function playSynthStep() {
+    if (!musicContext || !musicGain) {
+        return;
+    }
+
+    const track = SYNTH_TRACKS[currentTrackIndex];
+    const progression = track.progression[musicStepIndex % track.progression.length];
+    const now = musicContext.currentTime;
+    const stepDuration = 60 / track.tempo;
+
+    progression.forEach((semitone, index) => {
+        const osc = musicContext.createOscillator();
+        const gain = musicContext.createGain();
+        const frequency = track.baseFreq * Math.pow(2, semitone / 12);
+
+        osc.type = index === 0 ? 'sine' : 'triangle';
+        osc.frequency.value = frequency;
+
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(0.11 / (index + 1), now + 0.16);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + stepDuration * 1.45);
+
+        osc.connect(gain);
+        gain.connect(musicGain);
+        osc.start(now);
+        osc.stop(now + stepDuration * 1.5);
+    });
+
+    const subOsc = musicContext.createOscillator();
+    const subGain = musicContext.createGain();
+    subOsc.type = 'sine';
+    subOsc.frequency.value = track.baseFreq / 2;
+    subGain.gain.setValueAtTime(0.0001, now);
+    subGain.gain.exponentialRampToValueAtTime(0.028, now + 0.1);
+    subGain.gain.exponentialRampToValueAtTime(0.0001, now + stepDuration * 1.5);
+    subOsc.connect(subGain);
+    subGain.connect(musicGain);
+    subOsc.start(now);
+    subOsc.stop(now + stepDuration * 1.55);
+
+    musicStepIndex += 1;
+}
+
+async function startMusicLoop() {
+    const ctx = ensureMusicContext();
+    if (ctx.state === 'suspended') {
+        await ctx.resume();
+    }
+
+    const track = SYNTH_TRACKS[currentTrackIndex];
+    const intervalMs = Math.round((60 / track.tempo) * 1000);
+    stopMusicLoop();
+    isMusicPlaying = true;
+    playSynthStep();
+    musicLoopTimer = setInterval(() => {
+        playSynthStep();
+    }, intervalMs);
+    updateMusicPlayButton();
+}
+
+function loadMusicTrack(index) {
+    currentTrackIndex = (index + SYNTH_TRACKS.length) % SYNTH_TRACKS.length;
+    musicStepIndex = 0;
+    const track = SYNTH_TRACKS[currentTrackIndex];
+    renderMusicTrackInfo();
+    updateMusicPlayButton();
+    setMusicStatus(`Track bereit: ${track.title}`, 'info');
 }
 
 async function toggleMusicPlayback() {
     try {
-        const player = await ensureMusicPlayer();
-        const track = YOUTUBE_TRACKS[currentTrackIndex];
-        const playerState = typeof player.getPlayerState === 'function' ? player.getPlayerState() : null;
-
         if (!isMusicPlaying) {
-            if (window.YT && playerState === window.YT.PlayerState.UNSTARTED) {
-                await loadMusicTrack(currentTrackIndex, { autoplay: true });
-            } else {
-                player.playVideo();
-                isMusicPlaying = true;
-                updateMusicPlayButton();
-                setMusicStatus(`Laeuft: ${track.title}`, 'success');
-            }
+            await startMusicLoop();
+            setMusicStatus(`Laeuft: ${SYNTH_TRACKS[currentTrackIndex].title}`, 'success');
         } else {
-            player.pauseVideo();
-            isMusicPlaying = false;
-            updateMusicPlayButton();
+            stopMusicLoop();
             setMusicStatus('Pausiert.', 'info');
         }
     } catch (error) {
         console.error('Fehler beim Starten der Musik:', error);
-        setMusicStatus('YouTube-Musik konnte nicht gestartet werden.', 'error');
+        setMusicStatus('Musik konnte nicht gestartet werden.', 'error');
     }
 }
 
-async function changeMusicTrack(direction, forcePlay = false) {
-    const shouldResume = forcePlay || isMusicPlaying;
-    await loadMusicTrack(currentTrackIndex + direction, { autoplay: shouldResume });
+async function changeMusicTrack(direction) {
+    const shouldResume = isMusicPlaying;
+    loadMusicTrack(currentTrackIndex + direction);
+
+    if (shouldResume) {
+        await startMusicLoop();
+        setMusicStatus(`Laeuft: ${SYNTH_TRACKS[currentTrackIndex].title}`, 'success');
+    }
 }
 
-async function initializeMusicPlayer() {
-    try {
-        await loadMusicTrack(0);
-    } catch (error) {
-        console.error('Fehler beim Initialisieren des YouTube-Players:', error);
-        setMusicStatus('YouTube-Player konnte nicht geladen werden.', 'error');
-    }
+function initializeMusicPlayer() {
+    renderMusicTrackInfo();
+    updateMusicPlayButton();
+    setMusicStatus('Bereit zum Starten.', 'info');
 }
 
 function addPlayer() {
@@ -1521,7 +1482,47 @@ function bindCommentActions() {
 }
 
 function bindMusicControls() {
-    setMusicStatus('Spotify-Player geladen. Musik steuerst du direkt im Embed.', 'success');
+    const prevButton = document.getElementById('musicPrevButton');
+    const playButton = document.getElementById('musicPlayButton');
+    const nextButton = document.getElementById('musicNextButton');
+
+    if (prevButton) {
+        prevButton.addEventListener('click', async () => {
+            await changeMusicTrack(-1);
+        });
+    }
+
+    if (playButton) {
+        playButton.addEventListener('click', async () => {
+            await toggleMusicPlayback();
+        });
+    }
+
+    if (nextButton) {
+        nextButton.addEventListener('click', async () => {
+            await changeMusicTrack(1);
+        });
+    }
+
+    const volumeSlider = document.getElementById('musicVolumeSlider');
+    const volumeLabel = document.getElementById('volumeLabel');
+    if (volumeSlider) {
+        volumeSlider.addEventListener('input', () => {
+            const val = parseInt(volumeSlider.value, 10);
+            currentMusicVolume = val;
+            if (volumeLabel) {
+                volumeLabel.textContent = `${val}%`;
+            }
+            applyMusicVolume();
+        });
+        currentMusicVolume = parseInt(volumeSlider.value, 10);
+    }
+
+    if (volumeLabel) {
+        volumeLabel.textContent = `${currentMusicVolume}%`;
+    }
+
+    initializeMusicPlayer();
 }
 
 async function initializeApp() {
