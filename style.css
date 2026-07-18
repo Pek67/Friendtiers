@@ -135,7 +135,9 @@ body::after {
 }
 
 header {
-    padding: 34px 22px;
+    position: relative;
+    min-height: 148px;
+    padding: 34px 22px 28px;
     text-align: center;
     background: linear-gradient(135deg, rgba(84, 35, 168, 0.4) 0%, rgba(10, 8, 20, 0.2) 100%);
     border-bottom: 1px solid rgba(171, 125, 255, 0.25);
@@ -447,13 +449,16 @@ button:hover {
 }
 
 .floating-discord-cta {
+    position: absolute;
+    top: 76px;
+    right: 26px;
     display: inline-flex;
-    width: min(420px, calc(100% - 24px));
-    margin: 16px auto 0;
-    padding: 22px 24px;
+    width: 320px;
+    margin: 0;
+    padding: 20px 22px;
     border-radius: 16px;
-    font-size: 1.22rem;
-    letter-spacing: 0.06em;
+    font-size: 1.08rem;
+    letter-spacing: 0.05em;
     text-align: center;
     text-transform: uppercase;
     background: linear-gradient(135deg, #8e5bff 0%, #5865f2 48%, #4d7aff 100%);
@@ -870,6 +875,20 @@ footer {
         height: auto;
         max-width: 1080px;
         margin: 0 auto 14px;
+    }
+}
+
+@media (max-width: 1180px) {
+    header {
+        min-height: auto;
+        padding-bottom: 28px;
+    }
+
+    .floating-discord-cta {
+        position: static;
+        display: inline-flex;
+        width: min(420px, calc(100% - 24px));
+        margin: 16px auto 0;
     }
 }
 
