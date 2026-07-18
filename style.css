@@ -432,6 +432,22 @@ button:hover {
     gap: 12px;
 }
 
+.music-embed-shell {
+    position: relative;
+    overflow: hidden;
+    border-radius: 16px;
+    border: 1px solid rgba(166, 119, 246, 0.24);
+    background: rgba(15, 10, 26, 0.96);
+    box-shadow: inset 0 0 30px rgba(124, 58, 237, 0.18);
+    aspect-ratio: 16 / 9;
+}
+
+#youtubePlayer,
+#youtubePlayer iframe {
+    width: 100%;
+    height: 100%;
+}
+
 .music-track-info {
     display: flex;
     flex-direction: column;
@@ -509,6 +525,12 @@ button:hover {
     color: #c084fc;
     min-width: 36px;
     text-align: right;
+}
+
+.music-credit {
+    margin: 0;
+    font-size: 0.78rem;
+    color: #bca7df;
 }
 
 .rankings-section {
