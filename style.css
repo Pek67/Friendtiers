@@ -426,6 +426,26 @@ button:hover {
     min-width: 88px;
 }
 
+.discord-join-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    text-decoration: none;
+    border-radius: 10px;
+    padding: 11px 16px;
+    background: linear-gradient(135deg, #7f5cff 0%, #5865f2 100%);
+    color: #fefbff;
+    font-weight: 700;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.discord-join-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(88, 101, 242, 0.35);
+    filter: brightness(1.06);
+}
+
 .music-player {
     display: flex;
     flex-direction: column;

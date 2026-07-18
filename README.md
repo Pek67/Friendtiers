@@ -8,6 +8,7 @@ Eine einfache Ranking-Seite fuer dich und deine Freunde.
 - Einfaches Admin-Passwort fuer Bearbeitungen
 - Zuschauer-Kommentare links und rechts
 - Live-Voting, Reactions und Daily-Frage fuer Zuschauer
+- Discord-Join-Button direkt auf der Website
 - Besucherzaehler, Ambient-Musik-Player und Admin-Reihenfolge
 - Automatische lokale Zwischenablage als Fallback
 - Responsive UI fuer Desktop und Handy
