@@ -7,6 +7,7 @@ Eine einfache Ranking-Seite fuer dich und deine Freunde.
 - Browseruebergreifende Speicherung mit **Supabase**
 - Einfaches Admin-Passwort fuer Bearbeitungen
 - Zuschauer-Kommentare links und rechts
+- Live-Voting, Reactions und Daily-Frage fuer Zuschauer
 - Automatische lokale Zwischenablage als Fallback
 - Responsive UI fuer Desktop und Handy
 - Keine Build-Tools noetig, nur statische Dateien
@@ -26,7 +27,7 @@ Damit dieselben Daten in mehreren Browsern und auf mehreren Geraeten sichtbar si
 
 1. Erstelle in Supabase ein Projekt.
 2. Oeffne im Supabase-Dashboard den **SQL Editor**.
-3. Fuehre den Inhalt aus `supabase.sql` aus (enthaelt Rankings + Kommentare).
+3. Fuehre den Inhalt aus `supabase.sql` aus (enthaelt Rankings, Kommentare und Viewer-Features).
 4. Oeffne `config.js`.
 5. Trage dort deine Werte aus **Project URL**, **anon public key** und dem Admin-Passwort ein.
 
@@ -38,7 +39,7 @@ window.FRIENDTIERS_CONFIG = {
 };
 ```
 
-Danach speichert FriendTiers die Liste und die Side-Kommentare in Supabase und laedt sie in jedem Browser wieder. Zum Bearbeiten der Rankings muss auf der Website das eingetragene Passwort eingegeben werden.
+Danach speichert FriendTiers die Liste, Side-Kommentare, Votes, Reactions und die Daily-Frage in Supabase und laedt alles in jedem Browser wieder. Zum Bearbeiten der Rankings muss auf der Website das eingetragene Passwort eingegeben werden.
 
 ## 📁 Dateistruktur
 

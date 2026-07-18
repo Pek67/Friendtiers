@@ -3,9 +3,19 @@ const MAX_RANKINGS = 20;
 const LOCAL_STORAGE_KEY = 'rankings-data';
 const COMMENTS_LOCAL_KEY = 'friendtiers-comments-data';
 const ADMIN_SESSION_KEY = 'friendtiers-admin-unlocked';
+const VIEWER_KEY_STORAGE = 'friendtiers-viewer-key';
 const SUPABASE_TABLE = 'friendtiers_state';
 const COMMENTS_TABLE = 'friendtiers_comments';
+const VOTES_TABLE = 'friendtiers_votes';
+const REACTIONS_TABLE = 'friendtiers_comment_reactions';
+const DAILY_ANSWERS_TABLE = 'friendtiers_daily_answers';
 const SUPABASE_ROW_ID = 'global';
+const REACTION_EMOJIS = ['🔥', '👑', '😂'];
+const DAILY_QUESTION = {
+    key: 'tierlist-chaos-level',
+    text: 'Wie fuehlt sich die aktuelle Tierlist an?',
+    choices: ['Perfekt akkurat', 'Bisschen wild', 'Reines Chaos']
+};
 
 const TIER_COLORS = {
     HT1: '#170f2c',
@@ -23,6 +33,13 @@ const TIER_COLORS = {
 let supabaseClient = null;
 let isAdmin = false;
 let allComments = [];
+let viewerKey = '';
+let voteCounts = {};
+let selectedVotePlayer = '';
+let dailyCounts = {};
+let selectedDailyChoice = '';
+let commentReactionCounts = {};
+let selectedCommentReactions = {};
 
 function getSyncStatusElement() {
     return document.getElementById('syncStatus');
@@ -91,6 +108,17 @@ function getSupabaseClient() {
     return supabaseClient;
 }
 
+function getViewerKey() {
+    const existing = localStorage.getItem(VIEWER_KEY_STORAGE);
+    if (existing) {
+        return existing;
+    }
+
+    const generated = `viewer-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    localStorage.setItem(VIEWER_KEY_STORAGE, generated);
+    return generated;
+}
+
 function normalizeTier(tier) {
     return TIERS.includes(tier) ? tier : TIERS[0];
 }
@@ -117,6 +145,26 @@ function setAuthStatus(message, state) {
 
 function setCommentStatus(side, message, state) {
     const statusElement = document.getElementById(`${side}CommentStatus`);
+    if (!statusElement) {
+        return;
+    }
+
+    statusElement.textContent = message;
+    statusElement.dataset.state = state;
+}
+
+function setVoteStatus(message, state) {
+    const statusElement = document.getElementById('voteStatus');
+    if (!statusElement) {
+        return;
+    }
+
+    statusElement.textContent = message;
+    statusElement.dataset.state = state;
+}
+
+function setDailyStatus(message, state) {
+    const statusElement = document.getElementById('dailyStatus');
     if (!statusElement) {
         return;
     }
@@ -176,6 +224,25 @@ function collectCurrentData() {
     });
 
     return data;
+}
+
+function getBoardPlayers() {
+    const data = collectCurrentData();
+    const names = [];
+
+    data.rankings.forEach((item) => {
+        if (item.name) {
+            names.push(item.name);
+        }
+    });
+
+    data.unranked.forEach((item) => {
+        if (item.name) {
+            names.push(item.name);
+        }
+    });
+
+    return names;
 }
 
 function loadLocalData() {
@@ -342,6 +409,182 @@ async function insertCommentToSupabase(comment) {
     return data;
 }
 
+async function loadVotesFromSupabase() {
+    const client = getSupabaseClient();
+    const { data, error } = await client
+        .from(VOTES_TABLE)
+        .select('player_name, voter_key');
+
+    if (error) {
+        throw error;
+    }
+
+    voteCounts = {};
+    selectedVotePlayer = '';
+
+    (data || []).forEach((row) => {
+        voteCounts[row.player_name] = (voteCounts[row.player_name] || 0) + 1;
+        if (row.voter_key === viewerKey) {
+            selectedVotePlayer = row.player_name;
+        }
+    });
+}
+
+async function submitVote(playerName) {
+    const client = getSupabaseClient();
+    const payload = {
+        voter_key: viewerKey,
+        player_name: playerName,
+        updated_at: new Date().toISOString()
+    };
+
+    const previousVote = selectedVotePlayer;
+    const { error } = await client
+        .from(VOTES_TABLE)
+        .upsert(payload, { onConflict: 'voter_key' });
+
+    if (error) {
+        throw error;
+    }
+
+    if (previousVote && voteCounts[previousVote]) {
+        voteCounts[previousVote] -= 1;
+    }
+
+    voteCounts[playerName] = (voteCounts[playerName] || 0) + 1;
+    selectedVotePlayer = playerName;
+}
+
+async function loadDailyAnswersFromSupabase() {
+    const client = getSupabaseClient();
+    const { data, error } = await client
+        .from(DAILY_ANSWERS_TABLE)
+        .select('choice, voter_key')
+        .eq('question_key', DAILY_QUESTION.key);
+
+    if (error) {
+        throw error;
+    }
+
+    dailyCounts = {};
+    selectedDailyChoice = '';
+
+    DAILY_QUESTION.choices.forEach((choice) => {
+        dailyCounts[choice] = 0;
+    });
+
+    (data || []).forEach((row) => {
+        dailyCounts[row.choice] = (dailyCounts[row.choice] || 0) + 1;
+        if (row.voter_key === viewerKey) {
+            selectedDailyChoice = row.choice;
+        }
+    });
+}
+
+async function submitDailyAnswer(choice) {
+    const client = getSupabaseClient();
+    const payload = {
+        question_key: DAILY_QUESTION.key,
+        voter_key: viewerKey,
+        choice,
+        updated_at: new Date().toISOString()
+    };
+
+    const previousChoice = selectedDailyChoice;
+    const { error } = await client
+        .from(DAILY_ANSWERS_TABLE)
+        .upsert(payload, { onConflict: 'question_key,voter_key' });
+
+    if (error) {
+        throw error;
+    }
+
+    if (previousChoice && dailyCounts[previousChoice]) {
+        dailyCounts[previousChoice] -= 1;
+    }
+
+    dailyCounts[choice] = (dailyCounts[choice] || 0) + 1;
+    selectedDailyChoice = choice;
+}
+
+async function loadCommentReactionsFromSupabase() {
+    const client = getSupabaseClient();
+    const { data, error } = await client
+        .from(REACTIONS_TABLE)
+        .select('comment_id, emoji, voter_key');
+
+    if (error) {
+        throw error;
+    }
+
+    commentReactionCounts = {};
+    selectedCommentReactions = {};
+
+    (data || []).forEach((row) => {
+        if (!commentReactionCounts[row.comment_id]) {
+            commentReactionCounts[row.comment_id] = {};
+        }
+        commentReactionCounts[row.comment_id][row.emoji] = (commentReactionCounts[row.comment_id][row.emoji] || 0) + 1;
+
+        if (row.voter_key === viewerKey) {
+            if (!selectedCommentReactions[row.comment_id]) {
+                selectedCommentReactions[row.comment_id] = {};
+            }
+            selectedCommentReactions[row.comment_id][row.emoji] = true;
+        }
+    });
+}
+
+async function toggleCommentReaction(commentId, emoji) {
+    const client = getSupabaseClient();
+    const alreadySelected = Boolean(
+        selectedCommentReactions[commentId] && selectedCommentReactions[commentId][emoji]
+    );
+
+    if (alreadySelected) {
+        const { error } = await client
+            .from(REACTIONS_TABLE)
+            .delete()
+            .eq('comment_id', commentId)
+            .eq('emoji', emoji)
+            .eq('voter_key', viewerKey);
+
+        if (error) {
+            throw error;
+        }
+
+        selectedCommentReactions[commentId][emoji] = false;
+        if (commentReactionCounts[commentId] && commentReactionCounts[commentId][emoji]) {
+            commentReactionCounts[commentId][emoji] -= 1;
+        }
+        return;
+    }
+
+    const payload = {
+        comment_id: commentId,
+        emoji,
+        voter_key: viewerKey
+    };
+
+    const { error } = await client
+        .from(REACTIONS_TABLE)
+        .upsert(payload, { onConflict: 'comment_id,emoji,voter_key' });
+
+    if (error) {
+        throw error;
+    }
+
+    if (!selectedCommentReactions[commentId]) {
+        selectedCommentReactions[commentId] = {};
+    }
+    selectedCommentReactions[commentId][emoji] = true;
+
+    if (!commentReactionCounts[commentId]) {
+        commentReactionCounts[commentId] = {};
+    }
+    commentReactionCounts[commentId][emoji] = (commentReactionCounts[commentId][emoji] || 0) + 1;
+}
+
 function formatCommentTime(timestamp) {
     if (!timestamp) {
         return 'jetzt';
@@ -351,6 +594,40 @@ function formatCommentTime(timestamp) {
         hour: '2-digit',
         minute: '2-digit'
     });
+}
+
+function createReactionButton(commentId, emoji) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'reaction-btn';
+
+    const count = commentReactionCounts[commentId] && commentReactionCounts[commentId][emoji]
+        ? commentReactionCounts[commentId][emoji]
+        : 0;
+
+    if (selectedCommentReactions[commentId] && selectedCommentReactions[commentId][emoji]) {
+        button.classList.add('is-selected');
+    }
+
+    button.textContent = `${emoji} ${count}`;
+    button.addEventListener('click', async () => {
+        if (!isSupabaseConfigured()) {
+            setCommentStatus('left', 'Reactions brauchen Supabase.', 'warning');
+            setCommentStatus('right', 'Reactions brauchen Supabase.', 'warning');
+            return;
+        }
+
+        try {
+            await toggleCommentReaction(commentId, emoji);
+            renderComments();
+        } catch (error) {
+            console.error('Fehler bei der Reaction:', error);
+            setCommentStatus('left', 'Reaction konnte nicht gespeichert werden.', 'error');
+            setCommentStatus('right', 'Reaction konnte nicht gespeichert werden.', 'error');
+        }
+    });
+
+    return button;
 }
 
 function createCommentElement(comment) {
@@ -377,6 +654,16 @@ function createCommentElement(comment) {
 
     wrapper.appendChild(head);
     wrapper.appendChild(message);
+
+    if (comment.id) {
+        const reactions = document.createElement('div');
+        reactions.className = 'comment-reactions';
+        REACTION_EMOJIS.forEach((emoji) => {
+            reactions.appendChild(createReactionButton(comment.id, emoji));
+        });
+        wrapper.appendChild(reactions);
+    }
+
     return wrapper;
 }
 
@@ -393,6 +680,126 @@ function renderComments() {
     allComments.forEach((comment) => {
         const target = comment.side === 'right' ? right.list : left.list;
         target.appendChild(createCommentElement(comment));
+    });
+}
+
+function renderVoteOptions() {
+    const container = document.getElementById('voteOptions');
+    if (!container) {
+        return;
+    }
+
+    const players = getBoardPlayers();
+    container.innerHTML = '';
+
+    if (!players.length) {
+        setVoteStatus('Noch keine Spieler zum Voten da.', 'warning');
+        return;
+    }
+
+    setVoteStatus('Stimme fuer deinen Favoriten ab.', 'info');
+
+    players.forEach((playerName) => {
+        const row = document.createElement('div');
+        row.className = 'vote-option';
+        if (selectedVotePlayer === playerName) {
+            row.classList.add('is-selected');
+        }
+
+        const meta = document.createElement('div');
+        meta.className = 'vote-meta';
+
+        const name = document.createElement('span');
+        name.className = 'vote-name';
+        name.textContent = playerName;
+
+        const count = document.createElement('span');
+        count.className = 'vote-count';
+        count.textContent = `${voteCounts[playerName] || 0} Votes`;
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = selectedVotePlayer === playerName ? 'Gewaehlt' : 'Voten';
+        button.addEventListener('click', async () => {
+            if (!isSupabaseConfigured()) {
+                setVoteStatus('Votes brauchen Supabase.', 'warning');
+                return;
+            }
+
+            try {
+                await submitVote(playerName);
+                renderVoteOptions();
+                setVoteStatus(`Vote fuer ${playerName} gespeichert.`, 'success');
+            } catch (error) {
+                console.error('Fehler beim Voting:', error);
+                setVoteStatus('Vote konnte nicht gespeichert werden.', 'error');
+            }
+        });
+
+        meta.appendChild(name);
+        meta.appendChild(count);
+        row.appendChild(meta);
+        row.appendChild(button);
+        container.appendChild(row);
+    });
+}
+
+function renderDailyQuestion() {
+    const questionElement = document.getElementById('dailyQuestionText');
+    const container = document.getElementById('dailyQuestionOptions');
+    if (!container) {
+        return;
+    }
+
+    if (questionElement) {
+        questionElement.textContent = DAILY_QUESTION.text;
+    }
+
+    container.innerHTML = '';
+    setDailyStatus('Stimme bei der Daily-Frage ab.', 'info');
+
+    DAILY_QUESTION.choices.forEach((choice) => {
+        const row = document.createElement('div');
+        row.className = 'daily-option';
+        if (selectedDailyChoice === choice) {
+            row.classList.add('is-selected');
+        }
+
+        const meta = document.createElement('div');
+        meta.className = 'daily-meta';
+
+        const name = document.createElement('span');
+        name.className = 'daily-name';
+        name.textContent = choice;
+
+        const count = document.createElement('span');
+        count.className = 'daily-count';
+        count.textContent = `${dailyCounts[choice] || 0} Stimmen`;
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = selectedDailyChoice === choice ? 'Gewaehlt' : 'Antworten';
+        button.addEventListener('click', async () => {
+            if (!isSupabaseConfigured()) {
+                setDailyStatus('Die Daily-Frage braucht Supabase.', 'warning');
+                return;
+            }
+
+            try {
+                await submitDailyAnswer(choice);
+                renderDailyQuestion();
+                setDailyStatus('Antwort gespeichert.', 'success');
+            } catch (error) {
+                console.error('Fehler bei der Daily-Frage:', error);
+                setDailyStatus('Antwort konnte nicht gespeichert werden.', 'error');
+            }
+        });
+
+        meta.appendChild(name);
+        meta.appendChild(count);
+        row.appendChild(meta);
+        row.appendChild(button);
+        container.appendChild(row);
     });
 }
 
@@ -421,6 +828,7 @@ function addPlayer() {
 
     nameInput.value = '';
     nameInput.focus();
+    renderVoteOptions();
     saveState();
 }
 
@@ -494,6 +902,7 @@ function moveToRankings(button) {
 
     item.remove();
     addToRankings(name, tier);
+    renderVoteOptions();
     saveState();
 }
 
@@ -504,6 +913,7 @@ function deleteRankingRow(button) {
 
     button.closest('tr').remove();
     updateRankNumbers();
+    renderVoteOptions();
     saveState();
 }
 
@@ -513,6 +923,7 @@ function deleteUnranked(button) {
     }
 
     button.closest('.unranked-item').remove();
+    renderVoteOptions();
     saveState();
 }
 
@@ -533,6 +944,7 @@ function clearAll() {
     }
 
     clearRenderedData();
+    renderVoteOptions();
     saveState();
 }
 
@@ -582,6 +994,7 @@ async function loadSavedData() {
         if (localData) {
             renderLoadedData(localData);
         }
+        renderVoteOptions();
         setSyncStatus('Supabase ist nicht konfiguriert.', 'warning');
         return;
     }
@@ -593,26 +1006,31 @@ async function loadSavedData() {
         if (remoteData) {
             renderLoadedData(remoteData);
             saveToLocalCache(remoteData);
+            renderVoteOptions();
             setSyncStatus('Gemeinsame Liste geladen.', 'success');
             return;
         }
 
         if (localData) {
             renderLoadedData(localData);
+            renderVoteOptions();
             setSyncStatus('Lokale Daten geladen.', 'warning');
             return;
         }
 
+        renderVoteOptions();
         setSyncStatus('Bereit - die gemeinsame Liste ist noch leer.', 'info');
     } catch (error) {
         console.error('Fehler beim Laden aus Supabase:', error);
 
         if (localData) {
             renderLoadedData(localData);
+            renderVoteOptions();
             setSyncStatus('Supabase nicht erreichbar - lokale Daten geladen.', 'warning');
             return;
         }
 
+        renderVoteOptions();
         setSyncStatus('Supabase konnte nicht geladen werden.', 'error');
     }
 }
@@ -627,7 +1045,11 @@ async function loadComments() {
     }
 
     try {
-        allComments = await loadCommentsFromSupabase();
+        const [comments] = await Promise.all([
+            loadCommentsFromSupabase(),
+            loadCommentReactionsFromSupabase()
+        ]);
+        allComments = comments;
         saveLocalComments(allComments);
         renderComments();
         setCommentStatus('left', 'Live-Kommentare aktiv.', 'success');
@@ -638,6 +1060,29 @@ async function loadComments() {
         renderComments();
         setCommentStatus('left', 'Supabase nicht erreichbar, lokale Kommentare aktiv.', 'warning');
         setCommentStatus('right', 'Supabase nicht erreichbar, lokale Kommentare aktiv.', 'warning');
+    }
+}
+
+async function loadViewerFeatures() {
+    renderDailyQuestion();
+    renderVoteOptions();
+
+    if (!isSupabaseConfigured()) {
+        setVoteStatus('Voting braucht Supabase.', 'warning');
+        setDailyStatus('Daily-Frage braucht Supabase.', 'warning');
+        return;
+    }
+
+    try {
+        await Promise.all([loadVotesFromSupabase(), loadDailyAnswersFromSupabase()]);
+        renderVoteOptions();
+        renderDailyQuestion();
+        setVoteStatus('Live-Voting aktiv.', 'success');
+        setDailyStatus('Daily-Frage aktiv.', 'success');
+    } catch (error) {
+        console.error('Fehler beim Laden der Viewer-Features:', error);
+        setVoteStatus('Voting konnte nicht geladen werden.', 'error');
+        setDailyStatus('Daily-Frage konnte nicht geladen werden.', 'error');
     }
 }
 
@@ -727,6 +1172,8 @@ function bindCommentActions() {
 }
 
 async function initializeApp() {
+    viewerKey = getViewerKey();
+
     const nameInput = document.getElementById('nameInput');
     nameInput.addEventListener('keypress', (event) => {
         if (event.key === 'Enter') {
@@ -737,7 +1184,8 @@ async function initializeApp() {
     bindAdminActions();
     bindCommentActions();
     restoreAdminSession();
-    await Promise.all([loadSavedData(), loadComments()]);
+    await loadSavedData();
+    await Promise.all([loadComments(), loadViewerFeatures()]);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
