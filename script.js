@@ -9,6 +9,7 @@ const COMMENTS_TABLE = 'friendtiers_comments';
 const VOTES_TABLE = 'friendtiers_votes';
 const REACTIONS_TABLE = 'friendtiers_comment_reactions';
 const DAILY_ANSWERS_TABLE = 'friendtiers_daily_answers';
+const VISITORS_TABLE = 'friendtiers_visitors';
 const SUPABASE_ROW_ID = 'global';
 const REACTION_EMOJIS = ['🔥', '👑', '😂'];
 const DAILY_QUESTION = {
@@ -16,6 +17,26 @@ const DAILY_QUESTION = {
     text: 'Wie fuehlt sich die aktuelle Tierlist an?',
     choices: ['Perfekt akkurat', 'Bisschen wild', 'Reines Chaos']
 };
+const MUSIC_TRACKS = [
+    {
+        title: 'Gymnopedie No. 1',
+        artist: 'Erik Satie',
+        sourceLabel: 'Public Domain / Wikimedia Commons',
+        url: 'https://upload.wikimedia.org/wikipedia/commons/5/55/Gymnopedie_No_1.mp3'
+    },
+    {
+        title: 'Clair de Lune',
+        artist: 'Claude Debussy',
+        sourceLabel: 'Public Domain / Wikimedia Commons',
+        url: 'https://upload.wikimedia.org/wikipedia/commons/4/41/Clair_de_Lune_-_Claude_Debussy.ogg'
+    },
+    {
+        title: 'Moonlight Sonata',
+        artist: 'Ludwig van Beethoven',
+        sourceLabel: 'Public Domain / Wikimedia Commons',
+        url: 'https://upload.wikimedia.org/wikipedia/commons/1/16/Beethoven_Moonlight_sonata%2C_1st_movement.ogg'
+    }
+];
 
 const TIER_COLORS = {
     HT1: '#170f2c',
@@ -40,6 +61,8 @@ let dailyCounts = {};
 let selectedDailyChoice = '';
 let commentReactionCounts = {};
 let selectedCommentReactions = {};
+let visitorCount = 0;
+let currentTrackIndex = 0;
 
 function getSyncStatusElement() {
     return document.getElementById('syncStatus');
@@ -59,6 +82,14 @@ function getLoginButtonElement() {
 
 function getLogoutButtonElement() {
     return document.getElementById('adminLogoutButton');
+}
+
+function getAudioElement() {
+    return document.getElementById('ambientAudio');
+}
+
+function getMusicPlayButtonElement() {
+    return document.getElementById('musicPlayButton');
 }
 
 function getSupabaseConfig() {
@@ -173,6 +204,34 @@ function setDailyStatus(message, state) {
     statusElement.dataset.state = state;
 }
 
+function setVisitorStatus(message, state) {
+    const statusElement = document.getElementById('visitorStatus');
+    if (!statusElement) {
+        return;
+    }
+
+    statusElement.textContent = message;
+    statusElement.dataset.state = state;
+}
+
+function setMusicStatus(message, state) {
+    const statusElement = document.getElementById('musicStatus');
+    if (!statusElement) {
+        return;
+    }
+
+    statusElement.textContent = message;
+    statusElement.dataset.state = state;
+}
+
+function setVisitorCount(count) {
+    visitorCount = count;
+    const element = document.getElementById('visitorCountValue');
+    if (element) {
+        element.textContent = String(count);
+    }
+}
+
 function getCommentFormParts(side) {
     return {
         form: document.getElementById(`${side}CommentForm`),
@@ -191,12 +250,18 @@ function createTierBadge(tier) {
     return badge;
 }
 
-function createDeleteButton(label, handlerName) {
+function createActionButton(label, handlerName, extraArgument) {
     const button = document.createElement('button');
     button.className = 'btn-delete';
     button.type = 'button';
     button.textContent = label;
-    button.setAttribute('onclick', `${handlerName}(this)`);
+
+    if (typeof extraArgument === 'number') {
+        button.setAttribute('onclick', `${handlerName}(this, ${extraArgument})`);
+    } else {
+        button.setAttribute('onclick', `${handlerName}(this)`);
+    }
+
     return button;
 }
 
@@ -585,6 +650,34 @@ async function toggleCommentReaction(commentId, emoji) {
     commentReactionCounts[commentId][emoji] = (commentReactionCounts[commentId][emoji] || 0) + 1;
 }
 
+async function registerVisitorAndLoadCount() {
+    const client = getSupabaseClient();
+    const now = new Date().toISOString();
+    const { error: upsertError } = await client
+        .from(VISITORS_TABLE)
+        .upsert(
+            {
+                visitor_key: viewerKey,
+                last_seen: now
+            },
+            { onConflict: 'visitor_key' }
+        );
+
+    if (upsertError) {
+        throw upsertError;
+    }
+
+    const { count, error: countError } = await client
+        .from(VISITORS_TABLE)
+        .select('visitor_key', { count: 'exact', head: true });
+
+    if (countError) {
+        throw countError;
+    }
+
+    return count || 0;
+}
+
 function formatCommentTime(timestamp) {
     if (!timestamp) {
         return 'jetzt';
@@ -803,6 +896,80 @@ function renderDailyQuestion() {
     });
 }
 
+function renderMusicTrackInfo() {
+    const currentTrack = MUSIC_TRACKS[currentTrackIndex];
+    const titleElement = document.getElementById('musicTrackTitle');
+    const metaElement = document.getElementById('musicTrackMeta');
+
+    if (titleElement) {
+        titleElement.textContent = `${currentTrack.title} — ${currentTrack.artist}`;
+    }
+
+    if (metaElement) {
+        metaElement.textContent = currentTrack.sourceLabel;
+    }
+}
+
+function updateMusicPlayButton() {
+    const playButton = getMusicPlayButtonElement();
+    const audio = getAudioElement();
+    if (!playButton || !audio) {
+        return;
+    }
+
+    playButton.textContent = audio.paused ? '▶ Play' : '⏸ Pause';
+}
+
+function loadMusicTrack(index) {
+    const audio = getAudioElement();
+    if (!audio) {
+        return;
+    }
+
+    currentTrackIndex = (index + MUSIC_TRACKS.length) % MUSIC_TRACKS.length;
+    const track = MUSIC_TRACKS[currentTrackIndex];
+    audio.src = track.url;
+    renderMusicTrackInfo();
+    updateMusicPlayButton();
+    setMusicStatus(`Track bereit: ${track.title}`, 'info');
+}
+
+async function toggleMusicPlayback() {
+    const audio = getAudioElement();
+    if (!audio) {
+        return;
+    }
+
+    if (!audio.src) {
+        loadMusicTrack(currentTrackIndex);
+    }
+
+    try {
+        if (audio.paused) {
+            await audio.play();
+            setMusicStatus(`Laeuft: ${MUSIC_TRACKS[currentTrackIndex].title}`, 'success');
+        } else {
+            audio.pause();
+            setMusicStatus('Pausiert.', 'info');
+        }
+        updateMusicPlayButton();
+    } catch (error) {
+        console.error('Fehler beim Starten der Musik:', error);
+        setMusicStatus('Musik konnte nicht gestartet werden.', 'error');
+    }
+}
+
+async function changeMusicTrack(direction) {
+    const audio = getAudioElement();
+    const shouldResume = audio ? !audio.paused : false;
+
+    loadMusicTrack(currentTrackIndex + direction);
+
+    if (shouldResume) {
+        await toggleMusicPlayback();
+    }
+}
+
 function addPlayer() {
     if (!requireAdminAction()) {
         return;
@@ -853,7 +1020,14 @@ function addToRankings(name, tier) {
 
     const actionsCell = document.createElement('td');
     actionsCell.className = 'actions-col admin-actions';
-    actionsCell.appendChild(createDeleteButton('✕', 'deleteRankingRow'));
+
+    const rankingActions = document.createElement('div');
+    rankingActions.className = 'ranking-actions';
+    rankingActions.appendChild(createActionButton('⬆️', 'moveRankingPosition', -1));
+    rankingActions.appendChild(createActionButton('⬇️', 'moveRankingPosition', 1));
+    rankingActions.appendChild(createActionButton('✕', 'deleteRankingRow'));
+
+    actionsCell.appendChild(rankingActions);
 
     row.appendChild(rankCell);
     row.appendChild(nameCell);
@@ -875,14 +1049,38 @@ function addToUnranked(name, tier) {
 
     const actionsElement = document.createElement('div');
     actionsElement.className = 'unranked-actions admin-actions';
-    actionsElement.appendChild(createDeleteButton('⬆️', 'moveToRankings'));
-    actionsElement.appendChild(createDeleteButton('✕', 'deleteUnranked'));
+    actionsElement.appendChild(createActionButton('⬆️', 'moveToRankings'));
+    actionsElement.appendChild(createActionButton('✕', 'deleteUnranked'));
 
     item.appendChild(nameElement);
     item.appendChild(createTierBadge(tier));
     item.appendChild(actionsElement);
 
     unrankedList.appendChild(item);
+}
+
+function moveRankingPosition(button, direction) {
+    if (!requireAdminAction()) {
+        return;
+    }
+
+    const row = button.closest('tr');
+    const tbody = document.getElementById('rankingsBody');
+    const sibling = direction < 0 ? row.previousElementSibling : row.nextElementSibling;
+
+    if (!row || !sibling) {
+        return;
+    }
+
+    if (direction < 0) {
+        tbody.insertBefore(row, sibling);
+    } else {
+        tbody.insertBefore(sibling, row);
+    }
+
+    updateRankNumbers();
+    renderVoteOptions();
+    saveState();
 }
 
 function moveToRankings(button) {
@@ -1086,6 +1284,23 @@ async function loadViewerFeatures() {
     }
 }
 
+async function loadVisitorCounter() {
+    if (!isSupabaseConfigured()) {
+        setVisitorCount(1);
+        setVisitorStatus('Ohne Supabase wird nur dein lokaler Besuch gezaehlt.', 'warning');
+        return;
+    }
+
+    try {
+        const count = await registerVisitorAndLoadCount();
+        setVisitorCount(count);
+        setVisitorStatus('Besucherzahl live geladen.', 'success');
+    } catch (error) {
+        console.error('Fehler beim Besucherzaehler:', error);
+        setVisitorStatus('Besucherzahl konnte nicht geladen werden.', 'error');
+    }
+}
+
 async function submitComment(side) {
     const { nameInput, messageInput } = getCommentFormParts(side);
     const author = nameInput && nameInput.value.trim() ? nameInput.value.trim() : 'Gast';
@@ -1171,6 +1386,62 @@ function bindCommentActions() {
     });
 }
 
+function bindMusicControls() {
+    const prevButton = document.getElementById('musicPrevButton');
+    const playButton = document.getElementById('musicPlayButton');
+    const nextButton = document.getElementById('musicNextButton');
+    const audio = getAudioElement();
+
+    if (!audio) {
+        return;
+    }
+
+    if (prevButton) {
+        prevButton.addEventListener('click', async () => {
+            await changeMusicTrack(-1);
+        });
+    }
+
+    if (playButton) {
+        playButton.addEventListener('click', async () => {
+            await toggleMusicPlayback();
+        });
+    }
+
+    if (nextButton) {
+        nextButton.addEventListener('click', async () => {
+            await changeMusicTrack(1);
+        });
+    }
+
+    audio.addEventListener('ended', async () => {
+        loadMusicTrack(currentTrackIndex + 1);
+        try {
+            await audio.play();
+            setMusicStatus(`Laeuft: ${MUSIC_TRACKS[currentTrackIndex].title}`, 'success');
+            updateMusicPlayButton();
+        } catch (error) {
+            console.error('Fehler beim automatischen Trackwechsel:', error);
+            setMusicStatus('Naechster Track konnte nicht automatisch starten.', 'error');
+        }
+    });
+
+    audio.addEventListener('pause', () => {
+        updateMusicPlayButton();
+    });
+
+    audio.addEventListener('play', () => {
+        updateMusicPlayButton();
+    });
+
+    audio.addEventListener('error', () => {
+        setMusicStatus('Track konnte nicht geladen werden.', 'error');
+        updateMusicPlayButton();
+    });
+
+    loadMusicTrack(0);
+}
+
 async function initializeApp() {
     viewerKey = getViewerKey();
 
@@ -1183,9 +1454,10 @@ async function initializeApp() {
 
     bindAdminActions();
     bindCommentActions();
+    bindMusicControls();
     restoreAdminSession();
     await loadSavedData();
-    await Promise.all([loadComments(), loadViewerFeatures()]);
+    await Promise.all([loadComments(), loadViewerFeatures(), loadVisitorCounter()]);
 }
 
 document.addEventListener('DOMContentLoaded', () => {

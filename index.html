@@ -7,6 +7,13 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="viewer-mode">
+    <div class="ambient-layer" aria-hidden="true">
+        <span class="orb orb-1"></span>
+        <span class="orb orb-2"></span>
+        <span class="orb orb-3"></span>
+        <span class="orb orb-4"></span>
+    </div>
+
     <aside class="side-panel side-panel-left">
         <h3>💬 Left Chat</h3>
         <p>Alle Zuschauer koennen hier etwas schreiben.</p>
@@ -77,6 +84,18 @@
             <section class="viewer-hub">
                 <div class="viewer-card">
                     <div class="viewer-card-head">
+                        <h3>👀 Besucher</h3>
+                        <p>So viele einzelne Zuschauer waren schon hier.</p>
+                    </div>
+                    <div class="visitor-counter">
+                        <span id="visitorCountValue" class="visitor-count-value">0</span>
+                        <span class="visitor-count-label">Besucher insgesamt</span>
+                    </div>
+                    <p id="visitorStatus" class="viewer-status" data-state="info">Zaehle Besucher...</p>
+                </div>
+
+                <div class="viewer-card">
+                    <div class="viewer-card-head">
                         <h3>⭐ Lieblingsspieler-Vote</h3>
                         <p>Jeder Zuschauer kann einen Favoriten pushen.</p>
                     </div>
@@ -91,6 +110,26 @@
                     </div>
                     <p id="dailyStatus" class="viewer-status" data-state="info">Bereit.</p>
                     <div id="dailyQuestionOptions" class="daily-options"></div>
+                </div>
+
+                <div class="viewer-card">
+                    <div class="viewer-card-head">
+                        <h3>🎵 Night Player</h3>
+                        <p>Lizenzfreie / public-domain Musik fuer die Stimmung.</p>
+                    </div>
+                    <div class="music-player">
+                        <div class="music-track-info">
+                            <span id="musicTrackTitle" class="music-track-title">Kein Track geladen</span>
+                            <span id="musicTrackMeta" class="music-track-meta">Royalty-free vibes</span>
+                        </div>
+                        <div class="music-controls">
+                            <button id="musicPrevButton" type="button" class="secondary-btn">⏮</button>
+                            <button id="musicPlayButton" type="button">▶ Play</button>
+                            <button id="musicNextButton" type="button" class="secondary-btn">⏭</button>
+                        </div>
+                        <p id="musicStatus" class="viewer-status" data-state="info">Bereit zum Starten.</p>
+                        <audio id="ambientAudio" preload="none"></audio>
+                    </div>
                 </div>
             </section>
 

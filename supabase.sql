@@ -38,11 +38,18 @@ create table if not exists public.friendtiers_comment_reactions (
     unique (comment_id, emoji, voter_key)
 );
 
+create table if not exists public.friendtiers_visitors (
+    visitor_key text primary key,
+    first_seen timestamptz not null default timezone('utc', now()),
+    last_seen timestamptz not null default timezone('utc', now())
+);
+
 alter table public.friendtiers_state enable row level security;
 alter table public.friendtiers_comments enable row level security;
 alter table public.friendtiers_votes enable row level security;
 alter table public.friendtiers_daily_answers enable row level security;
 alter table public.friendtiers_comment_reactions enable row level security;
+alter table public.friendtiers_visitors enable row level security;
 
 drop policy if exists "public can read friendtiers state" on public.friendtiers_state;
 create policy "public can read friendtiers state"
@@ -146,6 +153,28 @@ on public.friendtiers_comment_reactions
 for delete
 to anon, authenticated
 using (true);
+
+drop policy if exists "public can read friendtiers visitors" on public.friendtiers_visitors;
+create policy "public can read friendtiers visitors"
+on public.friendtiers_visitors
+for select
+to anon, authenticated
+using (true);
+
+drop policy if exists "public can insert friendtiers visitors" on public.friendtiers_visitors;
+create policy "public can insert friendtiers visitors"
+on public.friendtiers_visitors
+for insert
+to anon, authenticated
+with check (true);
+
+drop policy if exists "public can update friendtiers visitors" on public.friendtiers_visitors;
+create policy "public can update friendtiers visitors"
+on public.friendtiers_visitors
+for update
+to anon, authenticated
+using (true)
+with check (true);
 
 insert into public.friendtiers_state (id, rankings, unranked)
 values ('global', '[]'::jsonb, '[]'::jsonb)

@@ -8,6 +8,7 @@ Eine einfache Ranking-Seite fuer dich und deine Freunde.
 - Einfaches Admin-Passwort fuer Bearbeitungen
 - Zuschauer-Kommentare links und rechts
 - Live-Voting, Reactions und Daily-Frage fuer Zuschauer
+- Besucherzaehler, lizenzfreier Musik-Player und Admin-Reihenfolge
 - Automatische lokale Zwischenablage als Fallback
 - Responsive UI fuer Desktop und Handy
 - Keine Build-Tools noetig, nur statische Dateien
@@ -27,7 +28,7 @@ Damit dieselben Daten in mehreren Browsern und auf mehreren Geraeten sichtbar si
 
 1. Erstelle in Supabase ein Projekt.
 2. Oeffne im Supabase-Dashboard den **SQL Editor**.
-3. Fuehre den Inhalt aus `supabase.sql` aus (enthaelt Rankings, Kommentare und Viewer-Features).
+3. Fuehre den Inhalt aus `supabase.sql` aus (enthaelt Rankings, Kommentare, Votes, Reactions und Besucherzaehler).
 4. Oeffne `config.js`.
 5. Trage dort deine Werte aus **Project URL**, **anon public key** und dem Admin-Passwort ein.
 
