@@ -1,25 +1,28 @@
 const TIERS = ['HT1', 'LT1', 'HT2', 'LT2', 'HT3', 'LT3', 'HT4', 'LT4', 'HT5', 'LT5'];
 const MAX_RANKINGS = 20;
 const LOCAL_STORAGE_KEY = 'rankings-data';
+const COMMENTS_LOCAL_KEY = 'friendtiers-comments-data';
 const ADMIN_SESSION_KEY = 'friendtiers-admin-unlocked';
 const SUPABASE_TABLE = 'friendtiers_state';
+const COMMENTS_TABLE = 'friendtiers_comments';
 const SUPABASE_ROW_ID = 'global';
 
 const TIER_COLORS = {
-    HT1: '#1a1a1a',
-    LT1: '#2d2d2d',
-    HT2: '#3a3a3a',
-    LT2: '#474747',
-    HT3: '#545454',
-    LT3: '#616161',
-    HT4: '#6e6e6e',
-    LT4: '#7b7b7b',
-    HT5: '#888888',
-    LT5: '#959595'
+    HT1: '#170f2c',
+    LT1: '#291948',
+    HT2: '#3a1f63',
+    LT2: '#4d2a7f',
+    HT3: '#5f3598',
+    LT3: '#7449ad',
+    HT4: '#8c63c4',
+    LT4: '#a57ddb',
+    HT5: '#c39cff',
+    LT5: '#d8baff'
 };
 
 let supabaseClient = null;
 let isAdmin = false;
+let allComments = [];
 
 function getSyncStatusElement() {
     return document.getElementById('syncStatus');
@@ -92,6 +95,45 @@ function normalizeTier(tier) {
     return TIERS.includes(tier) ? tier : TIERS[0];
 }
 
+function setSyncStatus(message, state) {
+    const statusElement = getSyncStatusElement();
+    if (!statusElement) {
+        return;
+    }
+
+    statusElement.textContent = message;
+    statusElement.dataset.state = state;
+}
+
+function setAuthStatus(message, state) {
+    const statusElement = getAuthStatusElement();
+    if (!statusElement) {
+        return;
+    }
+
+    statusElement.textContent = message;
+    statusElement.dataset.state = state;
+}
+
+function setCommentStatus(side, message, state) {
+    const statusElement = document.getElementById(`${side}CommentStatus`);
+    if (!statusElement) {
+        return;
+    }
+
+    statusElement.textContent = message;
+    statusElement.dataset.state = state;
+}
+
+function getCommentFormParts(side) {
+    return {
+        form: document.getElementById(`${side}CommentForm`),
+        nameInput: document.getElementById(`${side}CommentName`),
+        messageInput: document.getElementById(`${side}CommentMessage`),
+        list: document.getElementById(`${side}CommentsList`)
+    };
+}
+
 function createTierBadge(tier) {
     const normalizedTier = normalizeTier(tier);
     const badge = document.createElement('span');
@@ -149,24 +191,17 @@ function saveToLocalCache(data) {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
 }
 
-function setSyncStatus(message, state) {
-    const statusElement = getSyncStatusElement();
-    if (!statusElement) {
-        return;
+function loadLocalComments() {
+    const saved = localStorage.getItem(COMMENTS_LOCAL_KEY);
+    if (!saved) {
+        return [];
     }
 
-    statusElement.textContent = message;
-    statusElement.dataset.state = state;
+    return JSON.parse(saved);
 }
 
-function setAuthStatus(message, state) {
-    const statusElement = getAuthStatusElement();
-    if (!statusElement) {
-        return;
-    }
-
-    statusElement.textContent = message;
-    statusElement.dataset.state = state;
+function saveLocalComments(comments) {
+    localStorage.setItem(COMMENTS_LOCAL_KEY, JSON.stringify(comments));
 }
 
 function updateAdminMode(nextIsAdmin) {
@@ -275,6 +310,90 @@ async function loadFromSupabase() {
     }
 
     return data;
+}
+
+async function loadCommentsFromSupabase() {
+    const client = getSupabaseClient();
+    const { data, error } = await client
+        .from(COMMENTS_TABLE)
+        .select('id, side, author, message, created_at')
+        .order('created_at', { ascending: false })
+        .limit(80);
+
+    if (error) {
+        throw error;
+    }
+
+    return Array.isArray(data) ? data : [];
+}
+
+async function insertCommentToSupabase(comment) {
+    const client = getSupabaseClient();
+    const { data, error } = await client
+        .from(COMMENTS_TABLE)
+        .insert(comment)
+        .select('id, side, author, message, created_at')
+        .single();
+
+    if (error) {
+        throw error;
+    }
+
+    return data;
+}
+
+function formatCommentTime(timestamp) {
+    if (!timestamp) {
+        return 'jetzt';
+    }
+
+    return new Date(timestamp).toLocaleTimeString('de-DE', {
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+function createCommentElement(comment) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'comment-item';
+
+    const head = document.createElement('div');
+    head.className = 'comment-item-head';
+
+    const author = document.createElement('span');
+    author.className = 'comment-author';
+    author.textContent = comment.author || 'Gast';
+
+    const time = document.createElement('span');
+    time.className = 'comment-time';
+    time.textContent = formatCommentTime(comment.created_at);
+
+    head.appendChild(author);
+    head.appendChild(time);
+
+    const message = document.createElement('div');
+    message.className = 'comment-message';
+    message.textContent = comment.message || '';
+
+    wrapper.appendChild(head);
+    wrapper.appendChild(message);
+    return wrapper;
+}
+
+function renderComments() {
+    const left = getCommentFormParts('left');
+    const right = getCommentFormParts('right');
+    if (!left.list || !right.list) {
+        return;
+    }
+
+    left.list.innerHTML = '';
+    right.list.innerHTML = '';
+
+    allComments.forEach((comment) => {
+        const target = comment.side === 'right' ? right.list : left.list;
+        target.appendChild(createCommentElement(comment));
+    });
 }
 
 function addPlayer() {
@@ -498,6 +617,75 @@ async function loadSavedData() {
     }
 }
 
+async function loadComments() {
+    if (!isSupabaseConfigured()) {
+        allComments = loadLocalComments();
+        renderComments();
+        setCommentStatus('left', 'Kommentare lokal geladen.', 'warning');
+        setCommentStatus('right', 'Kommentare lokal geladen.', 'warning');
+        return;
+    }
+
+    try {
+        allComments = await loadCommentsFromSupabase();
+        saveLocalComments(allComments);
+        renderComments();
+        setCommentStatus('left', 'Live-Kommentare aktiv.', 'success');
+        setCommentStatus('right', 'Live-Kommentare aktiv.', 'success');
+    } catch (error) {
+        console.error('Fehler beim Laden der Kommentare:', error);
+        allComments = loadLocalComments();
+        renderComments();
+        setCommentStatus('left', 'Supabase nicht erreichbar, lokale Kommentare aktiv.', 'warning');
+        setCommentStatus('right', 'Supabase nicht erreichbar, lokale Kommentare aktiv.', 'warning');
+    }
+}
+
+async function submitComment(side) {
+    const { nameInput, messageInput } = getCommentFormParts(side);
+    const author = nameInput && nameInput.value.trim() ? nameInput.value.trim() : 'Gast';
+    const message = messageInput ? messageInput.value.trim() : '';
+
+    if (!message) {
+        setCommentStatus(side, 'Bitte eine Nachricht eingeben.', 'warning');
+        return;
+    }
+
+    const payload = {
+        side,
+        author,
+        message
+    };
+
+    if (!isSupabaseConfigured()) {
+        const fallback = {
+            id: Date.now(),
+            side,
+            author,
+            message,
+            created_at: new Date().toISOString()
+        };
+        allComments = [fallback, ...allComments].slice(0, 80);
+        saveLocalComments(allComments);
+        renderComments();
+        setCommentStatus(side, 'Lokal gespeichert (ohne Supabase).', 'warning');
+        messageInput.value = '';
+        return;
+    }
+
+    try {
+        const inserted = await insertCommentToSupabase(payload);
+        allComments = [inserted, ...allComments].slice(0, 80);
+        saveLocalComments(allComments);
+        renderComments();
+        setCommentStatus(side, 'Kommentar gesendet.', 'success');
+        messageInput.value = '';
+    } catch (error) {
+        console.error('Fehler beim Speichern des Kommentars:', error);
+        setCommentStatus(side, 'Kommentar konnte nicht gesendet werden.', 'error');
+    }
+}
+
 function bindAdminActions() {
     const loginButton = getLoginButtonElement();
     const logoutButton = getLogoutButtonElement();
@@ -524,6 +712,20 @@ function bindAdminActions() {
     }
 }
 
+function bindCommentActions() {
+    ['left', 'right'].forEach((side) => {
+        const { form } = getCommentFormParts(side);
+        if (!form) {
+            return;
+        }
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            await submitComment(side);
+        });
+    });
+}
+
 async function initializeApp() {
     const nameInput = document.getElementById('nameInput');
     nameInput.addEventListener('keypress', (event) => {
@@ -533,8 +735,9 @@ async function initializeApp() {
     });
 
     bindAdminActions();
+    bindCommentActions();
     restoreAdminSession();
-    await loadSavedData();
+    await Promise.all([loadSavedData(), loadComments()]);
 }
 
 document.addEventListener('DOMContentLoaded', () => {

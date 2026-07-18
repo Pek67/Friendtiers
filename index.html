@@ -7,6 +7,30 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="viewer-mode">
+    <aside class="side-panel side-panel-left">
+        <h3>💬 Left Chat</h3>
+        <p>Alle Zuschauer koennen hier etwas schreiben.</p>
+        <form id="leftCommentForm" class="comment-form">
+            <input id="leftCommentName" type="text" placeholder="Dein Name (optional)" maxlength="40">
+            <textarea id="leftCommentMessage" placeholder="Schreib etwas Nice..." maxlength="240" required></textarea>
+            <button type="submit">Senden</button>
+        </form>
+        <p id="leftCommentStatus" class="comment-status" data-state="info">Bereit.</p>
+        <div id="leftCommentsList" class="comment-list"></div>
+    </aside>
+
+    <aside class="side-panel side-panel-right">
+        <h3>💬 Right Chat</h3>
+        <p>Auch hier kann jeder Kommentare droppen.</p>
+        <form id="rightCommentForm" class="comment-form">
+            <input id="rightCommentName" type="text" placeholder="Dein Name (optional)" maxlength="40">
+            <textarea id="rightCommentMessage" placeholder="Was denkst du gerade?" maxlength="240" required></textarea>
+            <button type="submit">Senden</button>
+        </form>
+        <p id="rightCommentStatus" class="comment-status" data-state="info">Bereit.</p>
+        <div id="rightCommentsList" class="comment-list"></div>
+    </aside>
+
     <div class="container">
         <header>
             <h1>🎮 FriendTiers</h1>
@@ -51,7 +75,7 @@
             </div>
 
             <div class="rankings-section">
-                <h2>📊 Gesamtrankings</h2>
+                <h2>🏆 Gesamtrankings</h2>
                 <table class="rankings-table">
                     <thead>
                         <tr>
@@ -76,7 +100,7 @@
         </div>
 
         <footer>
-            <p>FriendTiers Rankings System | Made with ❤️</p>
+            <p>FriendTiers Rankings System | Purple Night Edition</p>
         </footer>
     </div>
 
