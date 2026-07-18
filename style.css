@@ -51,6 +51,33 @@ header p {
     flex-wrap: wrap;
 }
 
+.sync-status {
+    margin-bottom: 24px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid #2a3050;
+    background: #11172d;
+    color: #d7deff;
+}
+
+.sync-status[data-state="success"] {
+    border-color: #2f7d57;
+    background: #13281f;
+    color: #9de2b3;
+}
+
+.sync-status[data-state="warning"] {
+    border-color: #8c6a2a;
+    background: #2a2112;
+    color: #f0d58a;
+}
+
+.sync-status[data-state="error"] {
+    border-color: #8b3f3f;
+    background: #2b1717;
+    color: #f2a0a0;
+}
+
 .input-group {
     display: flex;
     gap: 10px;

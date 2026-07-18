@@ -34,6 +34,10 @@
                 <button class="clear-btn" onclick="clearAll()">🗑️ Alles löschen</button>
             </div>
 
+            <div class="sync-status" id="syncStatus" data-state="info">
+                Starte...
+            </div>
+
             <div class="rankings-section">
                 <h2>📊 Gesamtrankings</h2>
                 <table class="rankings-table">
@@ -64,6 +68,8 @@
         </footer>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
