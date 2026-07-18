@@ -446,8 +446,13 @@ button:hover {
     filter: brightness(1.06);
 }
 
-.side-discord-btn {
-    margin: 4px 0 12px;
+.floating-discord-cta {
+    position: fixed;
+    top: 110px;
+    right: 314px;
+    z-index: 12;
+    width: 280px;
+    margin: 0;
     padding: 16px 18px;
     border-radius: 14px;
     font-size: 1.02rem;
@@ -461,7 +466,7 @@ button:hover {
     animation: discordPulse 1.9s ease-in-out infinite;
 }
 
-.side-discord-btn:hover {
+.floating-discord-cta:hover {
     transform: translateY(-2px) scale(1.02);
     box-shadow:
         0 0 0 1px rgba(198, 177, 255, 0.6),
@@ -861,6 +866,14 @@ footer {
 }
 
 @media (max-width: 1590px) {
+    .floating-discord-cta {
+        position: static;
+        display: flex;
+        width: min(420px, calc(100% - 28px));
+        max-width: 420px;
+        margin: 0 auto 14px;
+    }
+
     .side-panel {
         position: static;
         width: auto;
