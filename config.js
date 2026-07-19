@@ -1,5 +1,5 @@
 window.FRIENDTIERS_CONFIG = {
     supabaseUrl: 'https://qmqevvvyyazazgvumpcu.supabase.co',
     supabaseAnonKey: 'sb_publishable_Cvqlc-qvhVnhNEBb7P2soQ_-fxnojWN',
-    adminPassword: '2312'
+    adminPassword: '23122012'
 };
